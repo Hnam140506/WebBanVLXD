@@ -1,0 +1,114 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Vật Liệu Xây Dựng</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="top-header py-3">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <a href="/" class="text-decoration-none d-flex align-items-center">
+                        <i class="fa-solid fa-trowel-bricks fa-2x" style="color: var(--primary-yellow);"></i>
+                        <h3 class="mb-0 ms-2" style="color: var(--primary-blue); font-weight: 900;">BUILDMAT</h3>
+                    </a>
+                </div>
+                <div class="col-md-5">
+                    <form class="d-flex" asp-controller="Home" asp-action="Search" method="get">
+                        <input class="form-control search-input" type="search" placeholder="Nhập tên vật liệu cần tìm..." name="query">
+                        <button class="btn search-btn px-4" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    </form>
+                </div>
+                <div class="col-md-4 d-flex justify-content-end align-items-center">
+                    <div class="me-4 d-flex align-items-center">
+                        <i class="fa-solid fa-phone-volume fs-4 text-muted me-2"></i>
+                        <div>
+                            <span class="d-block small text-muted">Hotline hỗ trợ</span>
+                            <strong style="color: var(--primary-blue);">1900 1234</strong>
+                        </div>
+                    </div>
+                    <a href="/Cart" class="position-relative text-dark me-4">
+                        <i class="fa-solid fa-cart-shopping fs-4"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            0
+                        </span>
+                    </a>
+                    @if (User.Identity != null && User.Identity.IsAuthenticated)
+                    {
+                        <a href="/Profile" class="text-dark"><i class="fa-regular fa-circle-user fs-4"></i></a>
+                    }
+                    else
+                    {
+                        <a href="/Account/Login" class="btn btn-outline-primary btn-sm rounded-pill">Đăng nhập</a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg main-nav py-0">
+        <div class="container">
+            <button class="navbar-toggler bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link active" href="/">Trang chủ</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Products">Sản phẩm</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Dự án</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Tin tức</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Liên hệ</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        @RenderBody()
+    </main>
+
+    <footer class="pt-5 pb-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <h5 class="text-uppercase mb-4 fw-bold" style="color: var(--primary-yellow);">Về BuildMat</h5>
+                    <p>Hệ thống cung cấp vật liệu xây dựng hàng đầu, mang đến giải pháp toàn diện cho công trình của bạn với chất lượng tốt nhất.</p>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <h5 class="text-uppercase mb-4 fw-bold">Liên kết</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="#">Trang chủ</a></li>
+                        <li class="mb-2"><a href="#">Sản phẩm</a></li>
+                        <li class="mb-2"><a href="#">Chính sách đổi trả</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <h5 class="text-uppercase mb-4 fw-bold">Thông tin liên hệ</h5>
+                    <p><i class="fa-solid fa-location-dot me-2"></i> 123 Đường XYZ, TP.HCM</p>
+                    <p><i class="fa-solid fa-phone me-2"></i> 1900 1234</p>
+                    <p><i class="fa-solid fa-envelope me-2"></i> contact@buildmat.vn</p>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <h5 class="text-uppercase mb-4 fw-bold">Đăng ký nhận tin</h5>
+                    <div class="input-group">
+                        <input type="email" class="form-control" placeholder="Email của bạn...">
+                        <button class="btn btn-custom" type="button">Gửi</button>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-4 border-top pt-3" style="border-color: rgba(255,255,255,0.1) !important;">
+                <small>&copy; 2026 BuildMat. All rights reserved.</small>
+            </div>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,61 @@
+@{
+    var currentCat = ViewBag.CurrentCategory as string;
+}
+
+<style>
+    .filter-title { font-weight: 700; font-size: 1.1rem; color: var(--primary-blue); margin-bottom: 1rem; text-transform: uppercase; }
+    .category-list a { color: var(--text-dark); transition: color 0.2s; display: block; padding: 8px 0; border-bottom: 1px dashed #eaeaea; text-decoration: none; }
+    .category-list a:hover, .category-list a.active { color: var(--primary-yellow); font-weight: 600; }
+    .form-check-label { font-size: 0.95rem; }
+</style>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="filter-title">Danh mục</h5>
+        <div class="category-list">
+            <a href="/Product" class="@(currentCat == "Tất cả sản phẩm" ? "active" : "")">Tất cả sản phẩm</a>
+            <a href="/Product?category=Gạch ốp lát" class="@(currentCat == "Gạch ốp lát" ? "active" : "")">Gạch ốp lát</a>
+            <a href="/Product?category=Sơn chống thấm" class="@(currentCat == "Sơn chống thấm" ? "active" : "")">Sơn chống thấm</a>
+            <a href="/Product?category=Thiết bị vệ sinh" class="@(currentCat == "Thiết bị vệ sinh" ? "active" : "")">Thiết bị vệ sinh</a>
+            <a href="/Product?category=Vật liệu thô" class="@(currentCat == "Vật liệu thô" ? "active" : "")">Vật liệu thô</a>
+            <a href="/Product?category=Xi măng" class="@(currentCat == "Xi măng" ? "active" : "")">Xi măng</a>
+            <a href="/Product?category=Sắt thép" class="@(currentCat == "Sắt thép" ? "active" : "")">Sắt thép</a>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="filter-title">Mức giá</h5>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="price1">
+            <label class="form-check-label" for="price1">Dưới 100.000đ</label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="price2">
+            <label class="form-check-label" for="price2">100.000đ - 500.000đ</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="price3">
+            <label class="form-check-label" for="price3">Trên 500.000đ</label>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <h5 class="filter-title">Thương hiệu</h5>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="brand1">
+            <label class="form-check-label" for="brand1">Viglacera</label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="brand2">
+            <label class="form-check-label" for="brand2">Hòa Phát</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="brand3">
+            <label class="form-check-label" for="brand3">Hà Tiên</label>
+        </div>
+    </div>
+</div>

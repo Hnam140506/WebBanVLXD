@@ -1,0 +1,9 @@
+@model List<string>
+
+<div class="list-group shadow-sm mb-4">
+    <div class="list-group-item bg-primary text-white fw-bold">Danh mục vật liệu</div>
+    @foreach (var item in Model)
+    {
+        <a href="/Products?category=@item" class="list-group-item list-group-item-action">@item</a>
+    }
+</div>
