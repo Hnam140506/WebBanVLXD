@@ -16,15 +16,13 @@ namespace WebBanVLXD.Pages.Product
             _context = context;
         }
 
-        // Dữ liệu truyền ra View
         public List<WebBanVLXD.Models.Product> Products { get; set; } = new List<WebBanVLXD.Models.Product>();
         
-        // Tự động map Query String (ví dụ: ?category=Xi măng&page=2)
         [BindProperty(SupportsGet = true)]
-        public string Category { get; set; }
+        public string Category { get; set; } = string.Empty; // Fix CS8618
         
         [BindProperty(SupportsGet = true)]
-        public string SortOrder { get; set; }
+        public string SortOrder { get; set; } = string.Empty; // Fix CS8618
         
         [BindProperty(SupportsGet = true)]
         public int PageNumber { get; set; } = 1;
@@ -35,7 +33,6 @@ namespace WebBanVLXD.Pages.Product
         {
             var query = _context.Products.AsQueryable();
 
-            // 1. Lọc theo danh mục
             if (!string.IsNullOrEmpty(Category))
             {
                 query = query.Where(p => p.Category == Category);
@@ -45,7 +42,6 @@ namespace WebBanVLXD.Pages.Product
                 Category = "Tất cả sản phẩm";
             }
 
-            // 2. Sắp xếp
             switch (SortOrder)
             {
                 case "price_asc": query = query.OrderBy(p => p.Price); break;
@@ -54,13 +50,10 @@ namespace WebBanVLXD.Pages.Product
                 default: query = query.OrderByDescending(p => p.CreatedAt); break;
             }
 
-            // 3. Phân trang (9 sản phẩm 1 trang)
             int pageSize = 9;
             TotalPages = (int)Math.Ceiling(query.Count() / (double)pageSize);
             
-            // Xử lý lỗi nếu URL nhập page âm
-            if (PageNumber < 1) PageNumber = 1; 
-
+            if (PageNumber < 1) PageNumber = 1;
             Products = query.Skip((PageNumber - 1) * pageSize).Take(pageSize).ToList();
         }
     }

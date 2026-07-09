@@ -1,0 +1,27 @@
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between mb-3">
+        <h3>Quản lý sản phẩm</h3>
+        <a href="/Admin/Create" class="btn btn-primary">+ Thêm mới</a>
+    </div>
+    <table class="table table-hover shadow-sm bg-white rounded">
+        <thead class="table-primary">
+            <tr>
+                <th>Ảnh</th><th>Tên sản phẩm</th><th>Giá</th><th>Tồn kho</th><th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Products) {
+            <tr>
+                <td><img src="@item.ImageUrl" width="50" height="50"></td>
+                <td>@item.Name</td>
+                <td>@item.Price.ToString("N0") đ</td>
+                <td>@item.StockQuantity</td>
+                <td>
+                    <a href="/Admin/Edit/@item.Id" class="btn btn-sm btn-warning">Sửa</a>
+                    <a href="/Admin/Delete/@item.Id" class="btn btn-sm btn-danger">Xóa</a>
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>

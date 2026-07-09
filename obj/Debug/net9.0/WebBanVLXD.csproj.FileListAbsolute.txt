@@ -219,3 +219,4 @@ D:\LTWNC\WebBanVLXD\bin\Debug\net9.0\runtimes\win\lib\net6.0\System.Windows.Exte
 D:\LTWNC\WebBanVLXD\obj\Debug\net9.0\WebBanVLXD.csproj.AssemblyReference.cache
 D:\LTWNC\WebBanVLXD\obj\Debug\net9.0\WebBanVLXD.csproj.Up2Date
 D:\LTWNC\WebBanVLXD\obj\Debug\net9.0\compressed\7zom4b0sst-z4cx689gns.gz
+D:\LTWNC\WebBanVLXD\obj\Debug\net9.0\WebBanVLXD.sourcelink.json

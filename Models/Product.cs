@@ -19,5 +19,8 @@ namespace WebBanVLXD.Models
         public string? ImageUrl { get; set; }
         public string Category { get; set; } = "Chung";
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public decimal OldPrice { get; set; } // Giá cũ để gạch ngang
+        public string Brand { get; set; } = string.Empty;    // Thương hiệu
+        public string Specifications { get; set; } = string.Empty; // Thông số kỹ thuật
     }
 }
