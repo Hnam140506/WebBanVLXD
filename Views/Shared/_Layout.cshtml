@@ -38,32 +38,41 @@
                             0
                         </span>
                     </a>
+                    
+                    <!-- MENU TÀI KHOẢN ĐÃ SỬA THÀNH DROPDOWN -->
                     @if (User.Identity != null && User.Identity.IsAuthenticated)
                     {
-                        <a href="/Profile" class="text-dark"><i class="fa-regular fa-circle-user fs-4"></i></a>
+                        <div class="dropdown">
+                            <a href="#" class="text-dark dropdown-toggle text-decoration-none d-flex align-items-center" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa-regular fa-circle-user fs-4"></i>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userMenu">
+                                <li><span class="dropdown-item-text fw-bold" style="color: var(--primary-blue);">Xin chào, @User.Identity.Name!</span></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="/Account/ChangePassword"><i class="fa-solid fa-key me-2 text-muted"></i>Đổi mật khẩu</a></li>
+                                <li><a class="dropdown-item text-danger" href="/Account/Logout"><i class="fa-solid fa-right-from-bracket me-2"></i>Đăng xuất</a></li>
+                            </ul>
+                        </div>
                     }
                     else
                     {
-                        <a href="/Account/Login" class="btn btn-outline-primary btn-sm rounded-pill">Đăng nhập</a>
+                        <a href="/Account/Login" class="btn btn-outline-primary btn-sm rounded-pill px-4">Đăng nhập</a>
                     }
+                    <!-- KẾT THÚC MENU TÀI KHOẢN -->
+
                 </div>
             </div>
         </div>
     </div>
 
-    <nav class="navbar navbar-expand-lg main-nav py-0">
+    <!-- THANH MENU CHÍNH VIEW COMPONENT -->
+    <nav class="navbar navbar-expand-lg main-nav py-0 bg-light">
         <div class="container">
-            <button class="navbar-toggler bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link active" href="/">Trang chủ</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/Products">Sản phẩm</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">Dự án</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">Tin tức</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#">Liên hệ</a></li>
-                </ul>
+            <div class="collapse navbar-collapse" id="mainMenu">
+                @await Component.InvokeAsync("Menu")
             </div>
         </div>
     </nav>

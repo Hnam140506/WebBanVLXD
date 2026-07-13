@@ -1,0 +1,16 @@
+@model IEnumerable<WebBanVLXD.ViewComponents.CategoryItem>
+
+<div class="row text-center g-4 justify-content-center">
+    @foreach (var cat in Model)
+    {
+        <div class="col-6 col-sm-4 col-md-2">
+            <a asp-controller="Home" asp-action="Index" asp-route-category="@cat.Name" class="text-decoration-none">
+                <div class="category-icon-wrap mx-auto mb-3 d-flex align-items-center justify-content-center shadow-sm rounded-circle" 
+                     style="width: 80px; height: 80px; background-color: #f8f9fa; border: 2px solid @cat.Color; transition: all 0.3s ease;">
+                    <i class="@cat.Icon fa-2x" style="color: @cat.Color;"></i>
+                </div>
+                <h6 class="fw-bold text-dark text-truncate px-1">@cat.Name</h6>
+            </a>
+        </div>
+    }
+</div>

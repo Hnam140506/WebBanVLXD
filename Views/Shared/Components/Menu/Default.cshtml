@@ -1,0 +1,15 @@
+@model IEnumerable<WebBanVLXD.ViewComponents.MenuItem>
+
+<ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-2">
+    @foreach (var item in Model)
+    {
+        <li class="nav-item">
+            <a class="nav-link fw-bold text-uppercase px-3 py-2 text-dark" 
+               asp-controller="@item.Controller" 
+               asp-action="@item.Action"
+               style="transition: color 0.2s ease;">
+                @item.Name
+            </a>
+        </li>
+    }
+</ul>
