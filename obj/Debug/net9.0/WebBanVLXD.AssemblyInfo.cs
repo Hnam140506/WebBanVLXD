@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WebBanVLXD")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+36c1448723ab38b7332d3b701035670706fd40a7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+83a369e9c5976b53a88da3f08f581534d4aa4910")]
 [assembly: System.Reflection.AssemblyProductAttribute("WebBanVLXD")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WebBanVLXD")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
