@@ -6,16 +6,22 @@ using WebBanVLXD.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
-// Thêm hỗ trợ Razor Pages nếu bạn muốn dùng song song
-builder.Services.AddRazorPages(); 
+builder.Services.AddRazorPages();
 
-// 1. Cấu hình SQL Server thay cho MongoDB
+// 1. Cấu hình SQL Server
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// In ra Connection String để kiểm tra
+Console.WriteLine("========================================");
+Console.WriteLine("Connection String:");
+Console.WriteLine(connectionString);
+Console.WriteLine("========================================");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString)
 );
 
-// 2. Cấu hình Cookie Authentication & OAuth (Đã loại bỏ GitHub)
+// 2. Cấu hình Cookie Authentication & OAuth
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -40,7 +46,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
 });
 
 var app = builder.Build();
@@ -64,6 +72,7 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-app.MapRazorPages(); // Map Razor Pages
+
+app.MapRazorPages();
 
 app.Run();
