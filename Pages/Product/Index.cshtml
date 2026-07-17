@@ -1,97 +1,176 @@
 @page
 @model WebBanVLXD.Pages.Product.IndexModel
 @{
-    ViewData["Title"] = Model.Category;
+    ViewData["Title"] = "Tất cả sản phẩm";
+    Layout = "~/Views/Shared/_Layout.cshtml"; 
 }
 
-<style>
-    .old-price { text-decoration: line-through; color: #999; font-size: 0.9rem; margin-left: 8px; }
-    .discount-badge { position: absolute; top: 10px; left: 10px; background-color: #ff3b30; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; z-index: 2; }
-    .page-link { color: var(--primary-blue); }
-    .page-item.active .page-link { background-color: var(--primary-yellow); border-color: var(--primary-yellow); color: var(--primary-blue); font-weight: bold; }
-</style>
-
 <div class="container my-4">
+    <!-- BREADCRUMB -->
     <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/" class="text-decoration-none">Trang chủ</a></li>
-            <li class="breadcrumb-item"><a href="/Product" class="text-decoration-none">Sản phẩm</a></li>
-            <li class="breadcrumb-item active" aria-current="page">@Model.Category</li>
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a href="/" class="text-muted text-decoration-none small">Trang chủ</a></li>
+            <li class="breadcrumb-item active small" aria-current="page">@Model.Category</li>
         </ol>
+        <h3 class="fw-bold mt-2">
+            <span style="color: var(--bs-dark-blue);">Vật Liệu Xây Dựng</span> 
+            <span class="text-orange">Chất Lượng Cao</span>
+        </h3>
     </nav>
 
-    <div class="row">
-        <div class="col-lg-3 mb-4">
-            @await Component.InvokeAsync("ProductFilter", new { currentCategory = Model.Category })
+    <div class="row g-4">
+        <!-- SIDEBAR BỘ LỌC -->
+        <div class="col-lg-3">
+            <div class="filter-sidebar bg-white p-4 rounded-3 shadow-sm border border-light sticky-top" style="top: 100px;">
+                <!-- Danh mục -->
+                <div class="filter-section mb-4">
+                    <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: var(--bs-dark-blue);">
+                        <i class="fa-solid fa-layer-group me-2"></i> Danh mục
+                    </h6>
+                    <ul class="list-unstyled mb-0 category-list-smart">
+                        <li class="d-flex justify-content-between align-items-center mb-2">
+                            <a href="/Product" class="text-decoration-none @(Model.Category == "Tất cả sản phẩm" ? "text-orange fw-bold" : "text-muted")">Tất cả</a>
+                        </li>
+                        <li class="d-flex justify-content-between align-items-center mb-2">
+                            <a href="/Product?category=Sắt+thép" class="text-decoration-none @(Model.Category == "Sắt thép" ? "text-orange fw-bold" : "text-muted")">Sắt thép xây dựng</a>
+                        </li>
+                        <li class="d-flex justify-content-between align-items-center mb-2">
+                            <a href="/Product?category=Xi+măng" class="text-decoration-none @(Model.Category == "Xi măng" ? "text-orange fw-bold" : "text-muted")">Xi măng, Cát, Đá</a>
+                        </li>
+                        <li class="d-flex justify-content-between align-items-center mb-2">
+                            <a href="/Product?category=Gạch+xây" class="text-decoration-none @(Model.Category == "Gạch xây" ? "text-orange fw-bold" : "text-muted")">Gạch xây dựng</a>
+                        </li>
+                        <li class="d-flex justify-content-between align-items-center">
+                            <a href="/Product?category=Sơn" class="text-decoration-none @(Model.Category == "Sơn" ? "text-orange fw-bold" : "text-muted")">Sơn & Chống thấm</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <hr class="text-muted opacity-25">
+
+                <!-- Khoảng giá -->
+                <div class="filter-section mb-4">
+                    <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: var(--bs-dark-blue);">
+                        <i class="fa-solid fa-tag me-2"></i> Khoảng giá
+                    </h6>
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <input type="text" class="form-control form-control-sm text-center" placeholder="Từ" style="border-radius: 6px;">
+                        <span class="text-muted">-</span>
+                        <input type="text" class="form-control form-control-sm text-center" placeholder="Đến" style="border-radius: 6px;">
+                    </div>
+                    <button class="btn w-100 fw-bold text-white shadow-sm" style="background-color: var(--bs-dark-blue); border-radius: 6px; font-size: 0.9rem;">
+                        Áp dụng
+                    </button>
+                </div>
+
+                <!-- Banner Khuyến mãi -->
+                <div class="promo-banner mt-4 p-4 text-white text-center rounded-4" style="background-color: var(--bs-dark-blue);">
+                    <p class="small text-uppercase mb-2 text-warning fw-bold">Khuyến mãi cực sốc</p>
+                    <h5 class="fw-bold mb-3">Giảm đến 20% cho<br>gạch ốp lát</h5>
+                    <a href="#" class="btn btn-light btn-sm fw-bold px-3 py-2 rounded-pill text-dark">Xem ngay</a>
+                </div>
+            </div>
         </div>
 
+        <!-- MAIN CONTENT - DANH SÁCH SẢN PHẨM -->
         <div class="col-lg-9">
-            <div class="d-flex justify-content-between align-items-center bg-white p-3 shadow-sm rounded mb-4">
-                <h4 class="mb-0 fw-bold" style="color: var(--primary-blue);">@Model.Category</h4>
-                <div class="d-flex align-items-center">
-                    <span class="me-2 text-muted small">Sắp xếp theo:</span>
-                    <select class="form-select form-select-sm w-auto border-0 bg-light" onchange="location = this.value;">
-                        <option value="/Product?category=@Model.Category" selected="@(string.IsNullOrEmpty(Model.SortOrder))">Mặc định</option>
-                        <option value="/Product?category=@Model.Category&sortOrder=price_asc" selected="@(Model.SortOrder == "price_asc")">Giá từ thấp đến cao</option>
-                        <option value="/Product?category=@Model.Category&sortOrder=price_desc" selected="@(Model.SortOrder == "price_desc")">Giá từ cao đến thấp</option>
-                    </select>
+            <!-- Top control bar -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
+                <p class="text-muted small mb-0">Hiển thị <strong id="current-count">@(Model.Products.Count)</strong> sản phẩm</p>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex align-items-center">
+                        <span class="text-muted small me-2 text-nowrap">Sắp xếp theo:</span>
+                        <select class="form-select form-select-sm border-0 bg-light fw-medium text-dark" style="border-radius: 8px;" onchange="location = this.value;">
+                            <option value="/Product?category=@Model.Category" selected="@(string.IsNullOrEmpty(Model.SortOrder))">Mới nhất</option>
+                            <option value="/Product?category=@Model.Category&sortOrder=price_asc" selected="@(Model.SortOrder == "price_asc")">Giá tăng dần</option>
+                            <option value="/Product?category=@Model.Category&sortOrder=price_desc" selected="@(Model.SortOrder == "price_desc")">Giá giảm dần</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
-            <div class="row g-4 mb-5">
+            <!-- PRODUCT GRID (Nơi đổ dữ liệu Infinite Scroll) -->
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4 mb-4" id="product-list-container">
                 @if (Model.Products != null && Model.Products.Any())
                 {
-                    foreach (var item in Model.Products)
-                    {
-                        <div class="col-12 col-sm-6 col-md-4">
-                            <div class="card product-card h-100 position-relative">
-                                <div class="discount-badge">-10%</div>
-                                <img src="@(item.ImageUrl ?? "https://placehold.co/400x400/e9ecef/495057?text=No+Image")" class="card-img-top object-fit-cover" height="250" alt="@item.Name">
-                                <div class="card-body d-flex flex-column">
-                                    <p class="text-muted small mb-1">@item.Category</p>
-                                    <h6 class="card-title fw-bold text-truncate">@item.Name</h6>
-                                    <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-end">
-                                        <div>
-                                            <div class="product-price mb-0">@item.Price.ToString("N0") đ</div>
-                                            <div class="old-price">@((item.Price * 1.1m).ToString("N0")) đ</div>
-                                        </div>
-                                        <button class="btn btn-custom btn-sm rounded-circle shadow-sm" style="width: 40px; height: 40px;">
-                                            <i class="fa-solid fa-cart-shopping"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
+                    <partial name="_ProductGridPartial" model="Model.Products" />
                 }
                 else
                 {
-                    <div class="col-12 text-center py-5 bg-white shadow-sm rounded">
-                        <i class="fa-solid fa-box-open fa-4x text-muted mb-3"></i>
-                        <h4 class="text-muted">Không tìm thấy sản phẩm nào</h4>
+                    <div class="col-12 text-center py-5">
+                        <h5 class="text-muted">Không tìm thấy sản phẩm nào.</h5>
                     </div>
                 }
             </div>
 
-            @if (Model.TotalPages > 1)
-            {
-                <nav>
-                    <ul class="pagination justify-content-center">
-                        <li class="page-item @(Model.PageNumber == 1 ? "disabled" : "")">
-                            <a class="page-link" href="/Product?category=@Model.Category&pageNumber=@(Model.PageNumber - 1)">Trang trước</a>
-                        </li>
-                        @for (int i = 1; i <= Model.TotalPages; i++)
-                        {
-                            <li class="page-item @(i == Model.PageNumber ? "active" : "")">
-                                <a class="page-link" href="/Product?category=@Model.Category&pageNumber=@i">@i</a>
-                            </li>
-                        }
-                        <li class="page-item @(Model.PageNumber == Model.TotalPages ? "disabled" : "")">
-                            <a class="page-link" href="/Product?category=@Model.Category&pageNumber=@(Model.PageNumber + 1)">Trang sau</a>
-                        </li>
-                    </ul>
-                </nav>
-            }
+            <!-- Loading Spinner (Ẩn mặc định) -->
+            <div id="loading-spinner" class="text-center py-4" style="display: none;">
+                <div class="spinner-border text-orange" role="status">
+                    <span class="visually-hidden">Đang tải...</span>
+                </div>
+                <p class="text-muted small mt-2">Đang tải thêm sản phẩm...</p>
+            </div>
+            
+            <!-- Message End of List -->
+            <div id="no-more-products" class="text-center py-4" style="display: none;">
+                <p class="text-muted fw-bold mb-0"><i class="fa-solid fa-check-circle text-success me-2"></i>Đã hiển thị toàn bộ sản phẩm</p>
+            </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        let currentPage = 1;
+        let totalPages = parseInt('@Model.TotalPages');
+        let isLoading = false;
+
+        // Nếu ban đầu danh sách chỉ có 1 trang thì hiện thông báo hết ngay
+        if (currentPage >= totalPages) {
+            $('#no-more-products').show();
+        }
+
+        $(window).scroll(function () {
+            // Kiểm tra xem vị trí cuộn đã cách đáy trang khoảng 300px chưa
+            if (Math.ceil($(window).scrollTop() + $(window).height()) >= $(document).height() - 300) {
+                if (!isLoading && currentPage < totalPages) {
+                    loadMoreProducts();
+                }
+            }
+        });
+
+        function loadMoreProducts() {
+            isLoading = true;
+            currentPage++;
+            
+            $('#loading-spinner').show();
+
+            let category = '@Model.Category';
+            let sortOrder = '@Model.SortOrder';
+
+            $.ajax({
+                // Trỏ thẳng đến Handler OnGetLoadMore()
+                url: `/Product?handler=LoadMore&pageNumber=${currentPage}&category=${encodeURIComponent(category)}&sortOrder=${encodeURIComponent(sortOrder)}`,
+                type: 'GET',
+                success: function (data) {
+                    // Append đoạn HTML Partial vừa tải về vào lưới sản phẩm
+                    $('#product-list-container').append(data);
+                    
+                    // Ẩn Loading
+                    $('#loading-spinner').hide();
+                    isLoading = false;
+
+                    // Nếu đã tải hết số trang thì chặn và hiện thông báo
+                    if (currentPage >= totalPages) {
+                         $('#no-more-products').show();
+                    }
+                },
+                error: function () {
+                    console.log("Lỗi tải trang");
+                    $('#loading-spinner').hide();
+                    isLoading = false;
+                }
+            });
+        }
+    </script>
+}

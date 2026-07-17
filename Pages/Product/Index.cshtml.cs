@@ -19,21 +19,22 @@ namespace WebBanVLXD.Pages.Product
         public List<WebBanVLXD.Models.Product> Products { get; set; } = new List<WebBanVLXD.Models.Product>();
         
         [BindProperty(SupportsGet = true)]
-        public string Category { get; set; } = string.Empty; // Fix CS8618
+        public string Category { get; set; } = string.Empty;
         
         [BindProperty(SupportsGet = true)]
-        public string SortOrder { get; set; } = string.Empty; // Fix CS8618
+        public string SortOrder { get; set; } = string.Empty;
         
         [BindProperty(SupportsGet = true)]
         public int PageNumber { get; set; } = 1;
         
         public int TotalPages { get; set; }
 
-        public void OnGet()
+        // Viết hàm chung để tái sử dụng bộ lọc tìm kiếm
+        private IQueryable<WebBanVLXD.Models.Product> GetProductQuery()
         {
             var query = _context.Products.AsQueryable();
 
-            if (!string.IsNullOrEmpty(Category))
+            if (!string.IsNullOrEmpty(Category) && Category != "Tất cả sản phẩm")
             {
                 query = query.Where(p => p.Category == Category);
             }
@@ -50,11 +51,32 @@ namespace WebBanVLXD.Pages.Product
                 default: query = query.OrderByDescending(p => p.CreatedAt); break;
             }
 
-            int pageSize = 9;
+            return query;
+        }
+
+        // Tải trang lần đầu
+        public void OnGet()
+        {
+            var query = GetProductQuery();
+            int pageSize = 12; // Hiển thị 12 sản phẩm mỗi trang như bản thiết kế
             TotalPages = (int)Math.Ceiling(query.Count() / (double)pageSize);
             
             if (PageNumber < 1) PageNumber = 1;
             Products = query.Skip((PageNumber - 1) * pageSize).Take(pageSize).ToList();
+        }
+
+        // Handler dành riêng cho AJAX Cuộn Vô Hạn
+        public IActionResult OnGetLoadMore(int pageNumber, string category, string sortOrder)
+        {
+            Category = category;
+            SortOrder = sortOrder;
+            
+            var query = GetProductQuery();
+            int pageSize = 12;
+            var products = query.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+
+            // Trả về thẳng giao diện Partial thay vì Full Page
+            return Partial("_ProductGridPartial", products);
         }
     }
 }

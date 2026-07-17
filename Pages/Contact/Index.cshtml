@@ -1,0 +1,144 @@
+@page
+@model WebBanVLXD.Pages.Contact.IndexModel
+@{
+    ViewData["Title"] = "Liên hệ";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- HERO BANNER -->
+<div class="contact-hero text-center text-white py-4" style="background: linear-gradient(rgba(11, 34, 76, 0.85), rgba(11, 34, 76, 0.85)), url('https://images.unsplash.com/photo-1541888086425-d81bb19240f5?q=80&w=1920&auto=format&fit=crop') center/cover; margin-bottom: 2rem;">
+    <div class="py-2">
+        <h2 class="fw-bold mb-2">Liên hệ với chúng tôi</h2>
+        <p class="small text-light mb-0" style="font-size: 0.85rem;">
+            <a href="/" class="text-white text-decoration-none">Trang chủ</a> 
+            <i class="fa-solid fa-angle-right mx-2 text-orange"></i> Liên hệ
+        </p>
+    </div>
+</div>
+
+<div class="container mb-5">
+    <div class="row g-5 justify-content-between">
+        <!-- CỘT TRÁI: THÔNG TIN LIÊN HỆ -->
+        <div class="col-lg-5 pe-lg-4">
+            <h4 class="fw-bold mb-3" style="color: var(--bs-dark-blue);">Thông tin liên hệ</h4>
+            <p class="text-muted mb-4" style="line-height: 1.6; font-size: 0.95rem;">
+                Chúng tôi luôn sẵn sàng hỗ trợ bạn. Hãy liên hệ với chúng tôi qua các kênh dưới đây hoặc để lại tin nhắn.
+            </p>
+
+            <div class="d-flex align-items-start mb-4">
+                <div class="contact-icon-wrap icon-wrap-location flex-shrink-0 mt-1">
+                    <i class="fa-solid fa-location-dot"></i>
+                </div>
+                <div class="ms-3">
+                    <h6 class="fw-bold mb-1 text-dark">Trụ sở chính</h6>
+                    <p class="text-muted small mb-0">123 Đường Xây Dựng, Phường Bến Nghé,<br>Quận 1, TP. Hồ Chí Minh</p>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-start mb-4">
+                <div class="contact-icon-wrap icon-wrap-phone flex-shrink-0 mt-1">
+                    <i class="fa-solid fa-phone"></i>
+                </div>
+                <div class="ms-3">
+                    <h6 class="fw-bold mb-1 text-dark">Số điện thoại</h6>
+                    <p class="text-muted small mb-0">Hotline: 1900 123 456<br>Kinh doanh: (028) 3822 4567</p>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-start mb-4">
+                <div class="contact-icon-wrap icon-wrap-email flex-shrink-0 mt-1">
+                    <i class="fa-solid fa-envelope"></i>
+                </div>
+                <div class="ms-3">
+                    <h6 class="fw-bold mb-1 text-dark">Email liên hệ</h6>
+                    <p class="text-muted small mb-0">contact@buildsmart.vn<br>support@buildsmart.vn</p>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-start mb-5">
+                <div class="contact-icon-wrap icon-wrap-clock flex-shrink-0 mt-1">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div class="ms-3">
+                    <h6 class="fw-bold mb-1 text-dark">Giờ làm việc</h6>
+                    <p class="text-muted small mb-0">Thứ 2 - Thứ 7: 08:00 - 18:00<br>Chủ nhật: 08:00 - 12:00</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- CỘT PHẢI: FORM GỬI TIN NHẮN ĐÃ TỐI ƯU GỌN -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body p-4">
+                    <h4 class="fw-bold mb-1" style="color: var(--bs-dark-blue);">Gửi tin nhắn cho chúng tôi</h4>
+                    <p class="text-muted small mb-3">Đội ngũ của chúng tôi sẽ liên hệ lại trong vòng 24 giờ.</p>
+
+                    <form method="post">
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-dark mb-1">Họ và tên *</label>
+                                <input type="text" class="form-control form-control-sm form-control-custom" placeholder="Nguyễn Văn A" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-dark mb-1">Số điện thoại *</label>
+                                <input type="tel" class="form-control form-control-sm form-control-custom" placeholder="0901 234 567" required>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-dark mb-1">Email</label>
+                                <input type="email" class="form-control form-control-sm form-control-custom" placeholder="example@gmail.com">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-dark mb-1">Vấn đề cần tư vấn</label>
+                                <select class="form-select form-control-sm form-control-custom text-muted">
+                                    <option selected>Báo giá vật liệu</option>
+                                    <option>Hỗ trợ kỹ thuật</option>
+                                    <option>Chính sách vận chuyển</option>
+                                    <option>Khác</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-bold small text-dark mb-1">Nội dung tin nhắn *</label>
+                            <textarea class="form-control form-control-sm form-control-custom" rows="2" placeholder="Bạn cần giúp đỡ điều gì?" required></textarea>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="privacyCheck" required>
+                            <label class="form-check-label text-muted x-small" for="privacyCheck" style="font-size: 0.75rem;">
+                                Tôi đồng ý với chính sách bảo mật của BuildSmart.
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-orange w-100 py-2 fw-bold text-white rounded-3 shadow-sm">
+                            GỬI TIN NHẮN NGAY
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KHU VỰC BẢN ĐỒ -->
+    <div class="mt-5 pt-5 border-top">
+        <div class="row align-items-center mb-4">
+            <div class="col-md-6">
+                <h4 class="fw-bold mb-1" style="color: var(--bs-dark-blue);">Bạn muốn ghé thăm trực tiếp?</h4>
+                <p class="text-muted mb-0 small">Bản đồ bên dưới chỉ đường chi tiết đến trụ sở chính của BuildSmart.</p>
+            </div>
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                <a href="https://maps.google.com" target="_blank" class="btn btn-orange text-white fw-bold px-4 py-2 rounded-pill shadow-sm">
+                    <i class="fa-solid fa-location-arrow me-2"></i> Mở trên Google Maps
+                </a>
+            </div>
+        </div>
+        
+        <div class="rounded-4 overflow-hidden shadow-sm border border-light" style="height: 400px; position: relative;">
+            <div style="position: absolute; top:0; width: 100%; height: 20px; background: linear-gradient(to bottom, rgba(0,0,0,0.1), transparent);"></div>
+            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d62702.998813033846!2d106.58692945401653!3d10.816100708272481!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752ff632279079%3A0x2d159a46edebea25!2sC%C3%B4ng%20ty%20TNHH%20Smart%20Build!5e0!3m2!1svi!2s!4v1784258466040!5m2!1svi!2s" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        </div>
+    </div>
+</div>
