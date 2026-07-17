@@ -1,9 +1,9 @@
-/* Màu sắc chủ đạo từ thiết kế */
+/* Màu sắc chủ đạo từ thiết kế BuildSmart */
 :root {
-    --primary-blue: #003366;
-    --primary-yellow: #ffa500;
+    --bs-dark-blue: #0b224c;
+    --bs-orange: #f57224;
     --text-dark: #333333;
-    --bg-light: #f8f9fa;
+    --bg-light: #ffffff;
 }
 
 body {
@@ -12,72 +12,81 @@ body {
     background-color: var(--bg-light);
 }
 
-/* Header & Navbar */
-.top-header {
-    background-color: #ffffff;
-    border-bottom: 1px solid #eaeaea;
+/* Custom Text/BG Colors */
+.text-orange { color: var(--bs-orange) !important; }
+.bg-orange { background-color: var(--bs-orange) !important; }
+
+/* Navbar Custom */
+.nav-link-custom {
+    font-size: 0.95rem;
+    padding: 0.5rem 1rem !important;
 }
-.main-nav {
-    background-color: var(--primary-blue);
-}
-.main-nav .nav-link {
-    color: #ffffff !important;
-    font-weight: 500;
-    padding: 1rem 1.5rem !important;
-    transition: background-color 0.3s;
-}
-.main-nav .nav-link:hover, .main-nav .nav-link.active {
-    background-color: var(--primary-yellow);
-    color: var(--primary-blue) !important;
+.nav-link-custom.active, .nav-link-custom:hover {
+    color: var(--bs-orange) !important;
 }
 
-/* Nút bấm & Tìm kiếm */
-.btn-custom {
-    background-color: var(--primary-yellow);
-    color: var(--primary-blue);
-    font-weight: bold;
-    border: none;
-}
-.btn-custom:hover {
-    background-color: #e69500;
-    color: var(--primary-blue);
-}
-.search-input {
-    border-radius: 20px 0 0 20px;
-    border: 1px solid var(--primary-blue);
-}
-.search-btn {
-    border-radius: 0 20px 20px 0;
-    background-color: var(--primary-blue);
-    color: white;
+/* Hero Section */
+.hero-bg {
+    height: 550px;
+    background-position: center;
+    background-size: cover;
 }
 
-/* Product Card */
-.product-card {
-    border: none;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    transition: transform 0.2s;
+/* Custom Buttons */
+.btn-orange {
+    background-color: var(--bs-orange);
+    border-color: var(--bs-orange);
+    transition: all 0.3s ease;
 }
-.product-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
-.product-price {
-    color: #d9534f;
-    font-weight: bold;
-    font-size: 1.1rem;
+.btn-orange:hover {
+    background-color: #d95e1a;
+    border-color: #d95e1a;
 }
 
-/* Footer */
-footer {
-    background-color: var(--primary-blue);
-    color: #ffffff;
+/* Category Cards Overlay */
+.category-img-card {
+    border-radius: 12px;
+    overflow: hidden;
+    height: 220px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
-footer a {
-    color: #cccccc;
+.category-img-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+}
+.gradient-overlay {
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 60%);
+    border-radius: 12px;
+}
+
+/* Footer Custom */
+.footer-custom {
+    background-color: #06214f;
+}
+.text-footer {
+    color: #9ab0d2;
+}
+.text-footer a {
+    color: #9ab0d2;
     text-decoration: none;
+    transition: color 0.2s;
 }
-footer a:hover {
-    color: var(--primary-yellow);
+.text-footer a:hover {
+    color: var(--bs-orange);
+}
+.social-icon {
+    width: 36px; 
+    height: 36px; 
+    background: rgba(255,255,255,0.08); 
+    border-radius: 50%;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    color: white; 
+    text-decoration: none;
+    transition: background 0.3s;
+}
+.social-icon:hover { 
+    background: var(--bs-orange); 
+    color: white;
 }

@@ -3,58 +3,95 @@
     ViewData["Title"] = "Trang chủ";
 }
 
-<div class="container-fluid p-0 mb-5">
-    <div class="bg-secondary d-flex align-items-center justify-content-center" style="height: 400px; background: url('https://images.unsplash.com/photo-1541888086425-d81bb19240f5?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') center/cover;">
-        <div class="text-center text-white" style="background: rgba(0, 51, 102, 0.7); padding: 40px; border-radius: 10px;">
-            <h1 class="display-4 fw-bold text-uppercase" style="color: var(--primary-yellow);">Siêu sale vật liệu</h1>
-            <p class="fs-4">Giảm giá lên đến 30% cho các đơn hàng thép và xi măng</p>
-            <a href="/Products" class="btn btn-custom btn-lg mt-3 px-5 rounded-pill">Mua ngay</a>
+<!-- HERO SECTION -->
+<div class="hero-section position-relative">
+    <div class="hero-bg" style="background: linear-gradient(to right, rgba(23, 62, 126, 0.95) 45%, rgba(23, 62, 126, 0.6) 100%), url('https://images.unsplash.com/photo-1541888086425-d81bb19240f5?q=80&w=1920&auto=format&fit=crop') center/cover;">
+        <div class="container h-100 d-flex align-items-center">
+            <div class="row w-100">
+                <div class="col-lg-6 text-white py-5">
+                    <span class="badge rounded-pill border border-light text-light px-3 py-2 mb-4 d-inline-flex align-items-center" style="background: rgba(255,255,255,0.05); font-weight: 500; font-size: 0.75rem; letter-spacing: 1px;">
+                        <i class="fa-solid fa-circle text-orange me-2" style="font-size: 6px;"></i> GIẢI PHÁP TOÀN DIỆN
+                    </span>
+                    <h1 class="display-4 fw-bolder mb-4" style="line-height: 1.2;">
+                        Vật Liệu Xây Dựng<br>
+                        Chất Lượng Cho<br>
+                        <span class="text-orange">Mọi Công Trình</span>
+                    </h1>
+                    <p class="fs-6 mb-5" style="max-width: 480px; color: #d0d7e6; line-height: 1.6;">
+                        Cung cấp giải pháp vật liệu toàn diện, giao hàng nhanh chóng, giá cả cạnh tranh. Đối tác tin cậy của hơn 1000+ nhà thầu.
+                    </p>
+                    <div class="d-flex gap-3">
+                        <a href="/Product" class="btn btn-orange fw-bold px-4 py-3 rounded-pill text-white shadow-sm d-inline-flex align-items-center">
+                            Xem Sản Phẩm <i class="fa-solid fa-arrow-right ms-2"></i>
+                        </a>
+                        <a href="/Quote" class="btn btn-outline-light fw-bold px-4 py-3 rounded-pill" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2);">
+                            Nhận Báo Giá
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="container">
-    <h3 class="text-center fw-bold text-uppercase mb-5" style="color: var(--primary-blue);">Danh mục nổi bật</h3>
-    
-    @await Component.InvokeAsync("FeaturedCategory")
-
-    <div class="d-flex justify-content-between align-items-center mb-4 mt-5">
-        <h3 class="fw-bold text-uppercase m-0" style="color: var(--primary-blue);">Sản phẩm nổi bật</h3>
-        <a asp-controller="Home" asp-action="Index" class="text-decoration-none fw-bold" style="color: var(--primary-yellow);">Xem tất cả <i class="fa-solid fa-angle-right"></i></a>
+<!-- CATEGORY SECTION -->
+<div class="container my-5 pt-5 pb-4">
+    <div class="d-flex justify-content-between align-items-end mb-4 pb-2">
+        <div>
+            <h3 class="fw-bold text-dark mb-2">Danh Mục Nổi Bật</h3>
+            <p class="text-muted mb-0" style="font-size: 0.95rem;">Khám phá các dòng sản phẩm chất lượng cao của chúng tôi</p>
+        </div>
+        <a href="/Product" class="text-dark fw-medium text-decoration-none" style="font-size: 0.95rem;">
+            Xem tất cả danh mục <i class="fa-solid fa-arrow-right ms-1"></i>
+        </a>
     </div>
 
-    <div class="row g-4 mb-5">
-        @if (Model != null && Model.Any())
-        {
-            @foreach (var item in Model)
-            {
-                <div class="col-md-3">
-                    <div class="card product-card h-100 shadow-sm border-0 position-relative">
-                        <div class="position-relative overflow-hidden" style="height: 200px;">
-                            <img src="@(item.ImageUrl ?? "https://placehold.co/400x300/e9ecef/495057?text=No+Image")" class="card-img-top object-fit-cover" height="200" alt="@item.Name">
-                            <span class="position-absolute top-0 start-0 bg-danger text-white px-2 py-1 m-2 rounded small fw-bold">HOT</span>
-                        </div>
-                        <div class="card-body d-flex flex-column">
-                            <p class="text-muted small mb-1">@item.Category</p>
-                            <h6 class="card-title fw-bold text-truncate" title="@item.Name">@item.Name</h6>
-                            <div class="mt-auto d-flex justify-content-between align-items-center pt-3 border-top">
-                                <span class="product-price fw-bold text-danger">@item.Price.ToString("N0") đ</span>
-                                <button class="btn btn-custom btn-sm rounded-circle shadow-sm" style="width: 35px; height: 35px;" title="Thêm vào giỏ hàng">
-                                    <i class="fa-solid fa-cart-plus"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+    <!-- Sử dụng Row Cols 5 để tạo ra 5 cột bằng nhau trên màn hình lớn như trong thiết kế -->
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3">
+        <div class="col">
+            <a href="/Product?category=Sắt+Thép" class="card category-img-card text-white border-0 text-decoration-none">
+                <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&auto=format&fit=crop" class="card-img h-100 object-fit-cover" alt="Sắt Thép">
+                <div class="card-img-overlay d-flex flex-column justify-content-end align-items-start gradient-overlay">
+                    <i class="fa-solid fa-layer-group mb-2 fs-5 opacity-75"></i>
+                    <h6 class="card-title fw-bold m-0">Sắt Thép</h6>
                 </div>
-            }
-        }
-        else
-        {
-            <div class="col-12 text-center py-5">
-                <i class="fa-solid fa-box-open fa-3x text-muted mb-3"></i>
-                <p class="text-muted">Không tìm thấy sản phẩm nào thuộc danh mục này.</p>
-                <a asp-controller="Home" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill px-3">Quay lại tất cả sản phẩm</a>
-            </div>
-        }
+            </a>
+        </div>
+        <div class="col">
+            <a href="/Product?category=Xi+Măng" class="card category-img-card text-white border-0 text-decoration-none">
+                <img src="https://images.unsplash.com/photo-1621252179027-94459d278660?q=80&w=400&auto=format&fit=crop" class="card-img h-100 object-fit-cover" alt="Xi Măng">
+                <div class="card-img-overlay d-flex flex-column justify-content-end align-items-start gradient-overlay">
+                    <i class="fa-solid fa-bag-shopping mb-2 fs-5 opacity-75"></i>
+                    <h6 class="card-title fw-bold m-0">Xi Măng</h6>
+                </div>
+            </a>
+        </div>
+        <div class="col">
+            <a href="/Product?category=Gạch+Xây" class="card category-img-card text-white border-0 text-decoration-none">
+                <img src="https://images.unsplash.com/photo-1585145199676-e17f0dd6ecf9?q=80&w=400&auto=format&fit=crop" class="card-img h-100 object-fit-cover" alt="Gạch Xây">
+                <div class="card-img-overlay d-flex flex-column justify-content-end align-items-start gradient-overlay">
+                    <i class="fa-solid fa-cubes mb-2 fs-5 opacity-75"></i>
+                    <h6 class="card-title fw-bold m-0">Gạch Xây</h6>
+                </div>
+            </a>
+        </div>
+        <div class="col">
+            <a href="/Product?category=Vật+Liệu+Hoàn+Thiện" class="card category-img-card text-white border-0 text-decoration-none">
+                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400&auto=format&fit=crop" class="card-img h-100 object-fit-cover" alt="Vật Liệu Hoàn Thiện">
+                <div class="card-img-overlay d-flex flex-column justify-content-end align-items-start gradient-overlay">
+                    <i class="fa-solid fa-paint-roller mb-2 fs-5 opacity-75"></i>
+                    <h6 class="card-title fw-bold m-0">Vật Liệu Hoàn Thiện</h6>
+                </div>
+            </a>
+        </div>
+        <div class="col">
+            <a href="/Product?category=Thiết+Bị+Điện+Nước" class="card category-img-card text-white border-0 text-decoration-none">
+                <img src="https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=400&auto=format&fit=crop" class="card-img h-100 object-fit-cover" alt="Thiết Bị Điện Nước">
+                <div class="card-img-overlay d-flex flex-column justify-content-end align-items-start gradient-overlay">
+                    <i class="fa-solid fa-bolt mb-2 fs-5 opacity-75"></i>
+                    <h6 class="card-title fw-bold m-0">Thiết Bị Điện Nước</h6>
+                </div>
+            </a>
+        </div>
     </div>
 </div>
