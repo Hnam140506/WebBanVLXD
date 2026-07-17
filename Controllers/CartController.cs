@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBanVLXD.Models;
 using System.Security.Claims;
-using Newtonsoft.Json;
 using System.Linq;
 
 namespace WebBanVLXD.Controllers {

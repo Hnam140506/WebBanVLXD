@@ -10,7 +10,7 @@ namespace WebBanVLXD.Models
         public string Id { get; set; } = Guid.NewGuid().ToString();
         [Required]
         public string Name { get; set; } = null!; // VD: Xi măng, Sắt thép
-        public string Description { get; set; } = null!;
+        public string Description { get; set; } = string.Empty;
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }

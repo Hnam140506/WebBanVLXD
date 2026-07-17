@@ -1,0 +1,46 @@
+@model WebBanVLXD.Models.Product
+@{
+    Layout = "_AdminLayout";
+    var categories = ViewBag.Categories as List<string> ?? new List<string>();
+}
+<div class="card card-admin p-4 shadow-sm">
+    <h5 class="fw-bold mb-4 text-primary">Thêm sản phẩm mới</h5>
+    <form asp-action="CreateProduct" method="post" enctype="multipart/form-data">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label fw-bold">Tên sản phẩm *</label>
+                <input asp-for="Name" class="form-control" required />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Danh mục</label>
+                <select asp-for="Category" class="form-select">
+                    @foreach (var cat in categories)
+                    {
+                        <option value="@cat">@cat</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Giá bán (đ) *</label>
+                <input asp-for="Price" type="number" class="form-control" required />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Đơn vị</label>
+                <input asp-for="Unit" class="form-control" placeholder="Bao, Cái, Tấn..." />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Ảnh sản phẩm</label>
+                <input type="file" name="imageFile" class="form-control" />
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-bold text-danger">Mô tả sản phẩm (Bắt buộc) *</label>
+                <textarea asp-for="Description" class="form-control" rows="4" required
+                          placeholder="Nhập mô tả chi tiết sản phẩm tại đây..."></textarea>
+            </div>
+            <div class="col-12 mt-4 text-end">
+                <a asp-action="Products" class="btn btn-light border px-4">Quay lại</a>
+                <button type="submit" class="btn btn-primary px-5">Lưu sản phẩm</button>
+            </div>
+        </div>
+    </form>
+</div>
