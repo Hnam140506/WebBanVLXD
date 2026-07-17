@@ -1,0 +1,63 @@
+@{
+    ViewData["Title"] = "Đăng ký";
+}
+
+<div class="row justify-content-center mt-5 mb-5">
+    <!-- Giảm từ col-md-5 xuống col-md-4 để form hẹp lại -->
+    <div class="col-11 col-sm-8 col-md-4 col-lg-3"> 
+        <div class="card shadow-sm border-0 px-4 py-4 rounded-4">
+            <div class="text-center mb-3">
+                <h3 class="fw-bold text-dark mb-1">Đăng ký</h3>
+                <p class="text-muted x-small" style="font-size: 0.8rem;">Tạo tài khoản thành viên BuildSmart</p>
+            </div>
+
+            <form asp-action="Register" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger small mb-2" style="font-size: 0.75rem;"></div>
+
+                <div class="mb-2">
+                    <label class="form-label fw-bold" style="font-size: 0.85rem;">Tên tài khoản</label>
+                    <input type="text" name="username" class="form-control form-control-sm shadow-none border-light-subtle" placeholder="Tên của bạn" required />
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label fw-bold" style="font-size: 0.85rem;">Email</label>
+                    <input type="email" name="email" class="form-control form-control-sm shadow-none border-light-subtle" placeholder="email@gmail.com" required />
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label fw-bold" style="font-size: 0.85rem;">Mật khẩu</label>
+                    <input type="password" name="password" class="form-control form-control-sm shadow-none border-light-subtle" placeholder="••••••" required />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold" style="font-size: 0.85rem;">Xác nhận mật khẩu</label>
+                    <input type="password" name="confirmPassword" class="form-control form-control-sm shadow-none border-light-subtle" placeholder="••••••" required />
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold rounded-3 shadow-sm" style="background-color: #0d6efd; font-size: 0.9rem;">
+                    ĐĂNG KÝ
+                </button>
+            </form>
+
+            <div class="d-flex align-items-center my-3">
+                <div class="flex-grow-1 border-bottom"></div>
+                <span class="mx-2 text-muted" style="font-size: 0.75rem;">Hoặc</span>
+                <div class="flex-grow-1 border-bottom"></div>
+            </div>
+
+            <form asp-action="ExternalLogin" asp-controller="Account" method="post" class="d-flex flex-column gap-2 mb-2">
+                <button type="submit" name="provider" value="Google" class="btn btn-outline-danger py-1 rounded-3 shadow-sm" style="font-size: 0.85rem;">
+                    <i class="fa-brands fa-google me-2"></i> Google
+                </button>
+                <button type="submit" name="provider" value="Facebook" class="btn btn-primary py-1 rounded-3 shadow-sm" style="background-color: #1877f2; border-color: #1877f2; font-size: 0.85rem;">
+                    <i class="fa-brands fa-facebook me-2"></i> Facebook
+                </button>
+            </form>
+
+            <div class="text-center mt-3" style="font-size: 0.8rem;">
+                <span class="text-muted">Đã có tài khoản?</span>
+                <a asp-action="Login" class="text-decoration-none fw-bold ms-1" style="color: #0d6efd;">Đăng nhập</a>
+            </div>
+        </div>
+    </div>
+</div>

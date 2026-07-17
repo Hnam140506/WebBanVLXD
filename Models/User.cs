@@ -12,7 +12,8 @@ namespace WebBanVLXD.Models
         [Required]
         public string Email { get; set; } = null!;
         public string PasswordHash { get; set; } = null!;
-        
+        public string Role { get; set; } = "Customer";
+
         public string? AuthProvider { get; set; }
         public string ThemePreference { get; set; } = "system";
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

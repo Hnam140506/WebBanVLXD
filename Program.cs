@@ -5,23 +5,26 @@ using WebBanVLXD.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Thêm dịch vụ Controller, Views và Razor Pages
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
 // 1. Cấu hình SQL Server
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-// In ra Connection String để kiểm tra
-Console.WriteLine("========================================");
-Console.WriteLine("Connection String:");
-Console.WriteLine(connectionString);
-Console.WriteLine("========================================");
-
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString)
 );
 
-// 2. Cấu hình Cookie Authentication & OAuth
+// 2. CẤU HÌNH SESSION (BẮT BUỘC CHO GIỎ HÀNG)
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Giỏ hàng tồn tại trong 30 phút chờ
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+// 3. Cấu hình Cookie Authentication & OAuth (Google/Facebook)
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -55,6 +58,7 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
+// Cấu hình Pipeline xử lý yêu cầu HTTP
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -65,6 +69,9 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// BẬT SESSION TRƯỚC AUTHENTICATION
+app.UseSession(); 
 
 app.UseAuthentication();
 app.UseAuthorization();

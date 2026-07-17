@@ -23,14 +23,49 @@ namespace WebBanVLXD.Controllers
             _context = context;
             _passwordHasher = new PasswordHasher<User>();
         }
+        [HttpGet]
+        public IActionResult InitAdmin()
+        {
+            string adminEmail = "admin@gmail.com"; // Thay bằng email bạn muốn
+            string adminPass = "123456";          // Thay bằng mật khẩu bạn muốn
 
-        // --- ĐĂNG KÝ ---
+            var existingUser = _context.Users.FirstOrDefault(u => u.Email == adminEmail);
+            if (existingUser == null)
+            {
+                var adminUser = new User
+                {
+                    UserName = "SuperAdmin",
+                    Email = adminEmail,
+                    Role = "Admin", // Quan trọng: Gán quyền Admin ở đây
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                adminUser.PasswordHash = _passwordHasher.HashPassword(adminUser, adminPass);
+
+                _context.Users.Add(adminUser);
+                _context.SaveChanges();
+
+                return Content($"Đã tạo tài khoản Admin thành công! Email: {adminEmail} | Pass: {adminPass}");
+            }
+
+            return Content("Tài khoản này đã tồn tại hoặc đã là Admin.");
+        }
+
+        // ==========================================
+        // --- ĐĂNG KÝ (Hàm xử lý duy nhất) ---
+        // ==========================================
         [HttpGet]
         public IActionResult Register() => View();
 
         [HttpPost]
-        public IActionResult Register(string username, string email, string password)
+        public IActionResult Register(string username, string email, string password, string confirmPassword)
         {
+            if (password != confirmPassword)
+            {
+                ModelState.AddModelError("", "Mật khẩu xác nhận không trùng khớp!");
+                return View();
+            }
+
             if (string.IsNullOrEmpty(password) || password.Length < 6)
             {
                 ModelState.AddModelError("", "Mật khẩu quá yếu! Vui lòng nhập ít nhất 6 ký tự.");
@@ -39,7 +74,7 @@ namespace WebBanVLXD.Controllers
 
             if (_context.Users.Any(u => u.Email == email || u.UserName == username))
             {
-                ModelState.AddModelError("", "Email hoặc Tên tài khoản đã tồn tại trên hệ thống!");
+                ModelState.AddModelError("", "Email hoặc Tên tài khoản đã tồn tại!");
                 return View();
             }
 
@@ -50,7 +85,7 @@ namespace WebBanVLXD.Controllers
                 ThemePreference = "system",
                 CreatedAt = DateTime.UtcNow
             };
-            
+
             newUser.PasswordHash = _passwordHasher.HashPassword(newUser, password);
             _context.Users.Add(newUser);
             _context.SaveChanges();
@@ -58,7 +93,9 @@ namespace WebBanVLXD.Controllers
             return RedirectToAction("Login");
         }
 
-        // --- ĐĂNG NHẬP THƯỜNG ---
+        // ==========================================
+        // --- ĐĂNG NHẬP ---
+        // ==========================================
         [HttpGet]
         public IActionResult Login() => View();
 
@@ -74,7 +111,7 @@ namespace WebBanVLXD.Controllers
 
             if (string.IsNullOrEmpty(user.PasswordHash))
             {
-                ModelState.AddModelError("", "Tài khoản này được đăng ký qua Mạng xã hội. Vui lòng chọn nút Đăng nhập tương ứng hoặc bấm 'Quên mật khẩu'.");
+                ModelState.AddModelError("", "Tài khoản này dùng MXH. Vui lòng đăng nhập qua Google/FB.");
                 return View();
             }
 
@@ -89,7 +126,8 @@ namespace WebBanVLXD.Controllers
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Email, user.Email)
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role ?? "Customer")
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -98,29 +136,20 @@ namespace WebBanVLXD.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        // --- ĐĂNG XUẤT ---
         public IActionResult Logout()
         {
             HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction("Index", "Home");
         }
 
-        // --- ĐĂNG NHẬP MXH BÊN THỨ 3 (GOOGLE & FACEBOOK) ---
+        // ==========================================
+        // --- ĐĂNG NHẬP MẠNG XÃ HỘI ---
+        // ==========================================
         [HttpPost]
         public IActionResult ExternalLogin(string provider)
         {
             var redirectUrl = Url.Action("ExternalLoginCallback", "Account");
             var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
-            
-            if (User.Identity != null && User.Identity.IsAuthenticated)
-            {
-                var localEmail = User.FindFirstValue(ClaimTypes.Email);
-                if (!string.IsNullOrEmpty(localEmail))
-                {
-                    properties.Items["LocalUserEmail"] = localEmail;
-                }
-            }
-
             return Challenge(properties, provider);
         }
 
@@ -133,51 +162,11 @@ namespace WebBanVLXD.Controllers
             var name = result.Principal.Identity?.Name;
             var provider = result.Principal.Identity?.AuthenticationType;
 
-            if (string.IsNullOrEmpty(email))
-            {
-                ModelState.AddModelError("", "Không thể lấy địa chỉ email từ nhà cung cấp này.");
-                return View("Login");
-            }
+            if (string.IsNullOrEmpty(email)) return RedirectToAction("Login");
 
             var providerTarget = $"{provider}:{email}";
-
-            if (result.Properties.Items.TryGetValue("LocalUserEmail", out var localEmail) && !string.IsNullOrEmpty(localEmail))
-            {
-                var currentUser = _context.Users.FirstOrDefault(u => u.Email == localEmail);
-                if (currentUser != null)
-                {
-                    var duplicateUser = _context.Users.FirstOrDefault(u => u.Email != localEmail &&
-                        (u.Email == email || (u.AuthProvider != null && u.AuthProvider.Contains(providerTarget))));
-                    
-                    if (duplicateUser != null)
-                    {
-                        TempData["ErrorMessage"] = $"Tài khoản {provider} ({email}) đã được liên kết với một thành viên khác!";
-                        return RedirectToAction("ChangePassword", "Account");
-                    }
-                    else
-                    {
-                        var currentProviders = new HashSet<string>((currentUser.AuthProvider ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries));
-                        currentProviders.Add(providerTarget);
-
-                        currentUser.AuthProvider = string.Join(",", currentProviders);
-                        _context.Users.Update(currentUser);
-                        _context.SaveChanges();
-
-                        var claims1 = new List<Claim> {
-                            new Claim(ClaimTypes.NameIdentifier, currentUser.Id),
-                            new Claim(ClaimTypes.Name, currentUser.UserName),
-                            new Claim(ClaimTypes.Email, currentUser.Email)
-                        };
-                        var claimsIdentity1 = new ClaimsIdentity(claims1, CookieAuthenticationDefaults.AuthenticationScheme);
-                        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity1));
-
-                        TempData["SuccessMessage"] = $"Liên kết tài khoản {provider} ({email}) thành công!";
-                        return RedirectToAction("ChangePassword", "Account");
-                    }
-                }
-            }
-
             var user = _context.Users.FirstOrDefault(u => u.AuthProvider != null && u.AuthProvider.Contains(providerTarget));
+
             if (user == null)
             {
                 user = _context.Users.FirstOrDefault(u => u.Email == email);
@@ -187,30 +176,25 @@ namespace WebBanVLXD.Controllers
                     {
                         Email = email,
                         UserName = name ?? email.Split('@')[0],
-                        ThemePreference = "system",
                         CreatedAt = DateTime.UtcNow,
                         PasswordHash = "",
                         AuthProvider = providerTarget
                     };
                     _context.Users.Add(user);
-                    _context.SaveChanges();
                 }
                 else
                 {
-                    var currentProviders = new HashSet<string>((user.AuthProvider ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries));
-                    currentProviders.Add(providerTarget);
-
-                    user.AuthProvider = string.Join(",", currentProviders);
+                    user.AuthProvider = (user.AuthProvider ?? "") + "," + providerTarget;
                     _context.Users.Update(user);
-                    _context.SaveChanges();
                 }
+                _context.SaveChanges();
             }
 
-            var claims = new List<Claim>
-            {
+            var claims = new List<Claim> {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Email, user.Email)
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role ?? "Customer")
             };
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
@@ -218,84 +202,9 @@ namespace WebBanVLXD.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        // --- ĐỔI MẬT KHẨU ---
-        [HttpGet]
-        public IActionResult ChangePassword()
-        {
-            if (!User.Identity!.IsAuthenticated) return RedirectToAction("Login");
-            var userEmail = User.FindFirstValue(ClaimTypes.Email);
-            var user = _context.Users.FirstOrDefault(u => u.Email == userEmail);
-            ViewBag.AuthProvider = user?.AuthProvider ?? "";
-
-            return View();
-        }
-
-        [HttpPost]
-        public IActionResult ChangePassword(string oldPassword, string newPassword, string confirmPassword)
-        {
-            if (!User.Identity!.IsAuthenticated) return RedirectToAction("Login");
-            
-            if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 6)
-            {
-                ModelState.AddModelError("", "Mật khẩu mới phải có ít nhất 6 ký tự.");
-                return View();
-            }
-
-            if (newPassword != confirmPassword)
-            {
-                ModelState.AddModelError("", "Mật khẩu xác nhận không khớp!");
-                return View();
-            }
-
-            var userEmail = User.FindFirstValue(ClaimTypes.Email);
-            var user = _context.Users.FirstOrDefault(u => u.Email == userEmail);
-
-            if (user == null) return RedirectToAction("Login");
-            if (string.IsNullOrEmpty(user.PasswordHash))
-            {
-                ModelState.AddModelError("", "Tài khoản mạng xã hội chưa thiết lập mật khẩu cục bộ.");
-                return View();
-            }
-
-            var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, oldPassword);
-            if (result == PasswordVerificationResult.Failed)
-            {
-                ModelState.AddModelError("", "Mật khẩu cũ không chính xác!");
-                return View();
-            }
-
-            user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
-            _context.Users.Update(user);
-            _context.SaveChanges();
-            
-            return RedirectToAction("Logout");
-        }
-
-        private async Task SendEmailAsync(string toEmail, string subject, string body)
-        {
-            string fromEmail = "nam1452000@gmail.com";
-            string appPassword = "sbbb xitb zgij cnog";
-
-            var smtpClient = new SmtpClient("smtp.gmail.com")
-            {
-                Port = 587,
-                Credentials = new NetworkCredential(fromEmail, appPassword),
-                EnableSsl = true,
-            };
-
-            var mailMessage = new MailMessage
-            {
-                From = new MailAddress(fromEmail, "BuildMat Admin"),
-                Subject = subject,
-                Body = body,
-                IsBodyHtml = true,
-            };
-            mailMessage.To.Add(toEmail);
-
-            await smtpClient.SendMailAsync(mailMessage);
-        }
-
-        // --- QUÊN MẬT KHẨU ---
+        // ==========================================
+        // --- QUÊN MẬT KHẨU & EMAIL ---
+        // ==========================================
         [HttpGet]
         public IActionResult ForgotPassword() => View();
 
@@ -303,38 +212,23 @@ namespace WebBanVLXD.Controllers
         public async Task<IActionResult> ForgotPassword(string email)
         {
             var user = _context.Users.FirstOrDefault(u => u.Email == email);
-            if (user == null)
+            if (user != null)
             {
-                ModelState.AddModelError("", "Email không tồn tại trên hệ thống.");
-                return View();
+                user.ResetPasswordToken = Guid.NewGuid().ToString();
+                user.ResetPasswordTokenExpiry = DateTime.UtcNow.AddMinutes(15);
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+
+                var resetLink = Url.Action("ResetPassword", "Account", new { email = user.Email, token = user.ResetPasswordToken }, Request.Scheme);
+                await SendEmailAsync(user.Email, "Khôi phục mật khẩu - BuildMat", $"Click vào link để đặt lại mật khẩu: {resetLink}");
             }
-
-            user.ResetPasswordToken = Guid.NewGuid().ToString();
-            user.ResetPasswordTokenExpiry = DateTime.UtcNow.AddMinutes(15);
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-
-            var resetLink = Url.Action("ResetPassword", "Account", new { email = user.Email, token = user.ResetPasswordToken }, Request.Scheme);
-            var subject = "Khôi phục mật khẩu - BuildMat";
-            var body = $@"
-                <div style='font-family: Arial, sans-serif; padding: 20px; max-width: 600px; border: 1px solid #ddd;'>
-                    <h3 style='color: #333;'>Yêu cầu khôi phục/tạo mật khẩu hệ thống vật liệu</h3>
-                    <p>Vui lòng click vào nút bên dưới để tiến hành thiết lập mật khẩu mới (Đường link có hiệu lực trong 15 phút):</p>
-                    <div style='text-align: center; margin: 30px 0;'>
-                         <a href='{resetLink}' style='display:inline-block; padding:12px 25px; background-color:#0d6efd; color:#fff; text-decoration:none; border-radius:5px; font-weight:bold;'>Thiết lập mật khẩu</a>
-                    </div>
-                </div>";
-            
-            await SendEmailAsync(user.Email, subject, body);
-            ViewBag.Message = "Đường link thiết lập mật khẩu đã được gửi thành công. Vui lòng kiểm tra hộp thư.";
+            ViewBag.Message = "Nếu email chính xác, link khôi phục đã được gửi.";
             return View();
         }
 
-        // --- ĐẶT LẠI MẬT KHẨU ---
         [HttpGet]
         public IActionResult ResetPassword(string email, string token)
         {
-            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(token)) return RedirectToAction("Login");
             ViewBag.Email = email;
             ViewBag.Token = token;
             return View();
@@ -343,48 +237,29 @@ namespace WebBanVLXD.Controllers
         [HttpPost]
         public async Task<IActionResult> ResetPassword(string email, string token, string newPassword, string confirmPassword)
         {
-            ViewBag.Email = email;
-            ViewBag.Token = token;
-
-            if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 6)
+            if (newPassword != confirmPassword) { ModelState.AddModelError("", "Mật khẩu không khớp"); return View(); }
+            var user = _context.Users.FirstOrDefault(u => u.Email == email && u.ResetPasswordToken == token);
+            if (user != null && user.ResetPasswordTokenExpiry > DateTime.UtcNow)
             {
-                ModelState.AddModelError("", "Mật khẩu mới phải có ít nhất 6 ký tự.");
-                return View();
+                user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
+                user.ResetPasswordToken = null;
+                await _context.SaveChangesAsync();
+                return RedirectToAction("Login");
             }
-
-            if (newPassword != confirmPassword)
-            {
-                ModelState.AddModelError("", "Mật khẩu xác nhận mới không trùng khớp!");
-                return View();
-            }
-
-            var user = _context.Users.FirstOrDefault(u => u.Email == email);
-            if (user == null)
-            {
-                ModelState.AddModelError("", "Tài khoản không tồn tại!");
-                return View();
-            }
-
-            if (user.ResetPasswordToken != token)
-            {
-                ModelState.AddModelError("", "Mã xác thực khôi phục không hợp lệ!");
-                return View();
-            }
-            if (user.ResetPasswordTokenExpiry < DateTime.UtcNow)
-            {
-                ModelState.AddModelError("", "Đường link khôi phục này đã hết hạn!");
-                return View();
-            }
-
-            user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
-            user.ResetPasswordToken = null;
-            user.ResetPasswordTokenExpiry = null;
-
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-
-            ViewBag.SuccessMessage = "Mật khẩu đã được thiết lập thành công! Hãy đăng nhập lại bằng Form Email.";
+            ModelState.AddModelError("", "Link không hợp lệ hoặc hết hạn.");
             return View();
+        }
+
+        private async Task SendEmailAsync(string toEmail, string subject, string body)
+        {
+            using var smtp = new SmtpClient("smtp.gmail.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential("nam1452000@gmail.com", "sbbb xitb zgij cnog"),
+                EnableSsl = true,
+            };
+            var mail = new MailMessage("nam1452000@gmail.com", toEmail, subject, body) { IsBodyHtml = true };
+            await smtp.SendMailAsync(mail);
         }
     }
 }

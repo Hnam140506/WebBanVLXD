@@ -1,0 +1,89 @@
+@model dynamic
+@{
+    ViewData["Title"] = "Dashboard Quản trị";
+    Layout = "_AdminLayout"; // QUAN TRỌNG: Dòng này giúp đổi giao diện
+}
+
+<div class="container-fluid">
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card card-admin bg-primary text-white p-3">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="small">DOANH THU</h6>
+                        <h3 class="fw-bold mb-0">@ViewBag.TotalRevenue.ToString("N0") đ</h3>
+                    </div>
+                    <i class="fa-solid fa-money-bill-trend-up fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-admin bg-success text-white p-3">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="small">ĐƠN HÀNG</h6>
+                        <h3 class="fw-bold mb-0">@ViewBag.OrderCount</h3>
+                    </div>
+                    <i class="fa-solid fa-cart-shopping fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-admin bg-warning text-dark p-3">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="small">SẢN PHẨM</h6>
+                        <h3 class="fw-bold mb-0">@ViewBag.ProductCount</h3>
+                    </div>
+                    <i class="fa-solid fa-box fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-admin bg-info text-white p-3">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="small">THÀNH VIÊN</h6>
+                        <h3 class="fw-bold mb-0">@ViewBag.UserCount</h3>
+                    </div>
+                    <i class="fa-solid fa-users fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card card-admin p-4">
+                <h5 class="fw-bold mb-4"><i class="fa-solid fa-chart-line me-2 text-orange"></i>Biểu đồ doanh thu 7 ngày qua</h5>
+                <canvas id="revenueChart" style="max-height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(Json.Serialize(ViewBag.ChartLabels)),
+                datasets: [{
+                    label: 'Doanh thu (đ)',
+                    data: @Html.Raw(Json.Serialize(ViewBag.ChartValues)),
+                    borderColor: '#f57224',
+                    backgroundColor: 'rgba(245, 114, 36, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+}

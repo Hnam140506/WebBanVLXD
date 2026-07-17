@@ -1,0 +1,52 @@
+@model IEnumerable<WebBanVLXD.Models.Order>
+@{
+    ViewData["Title"] = "Quản lý Đơn hàng";
+    Layout = "_AdminLayout"; // ĐỔI SANG LAYOUT ADMIN
+}
+
+<div class="card card-admin p-4">
+    <h5 class="fw-bold mb-4">Danh sách đơn hàng mới</h5>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Khách hàng</th>
+                    <th>Ngày đặt</th>
+                    <th>Tổng tiền</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-bold">@item.CustomerName</div>
+                            <small class="text-muted">@item.Phone</small>
+                        </td>
+                        <td>@item.OrderDate.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="text-orange fw-bold">@item.TotalAmount.ToString("N0") đ</td>
+                        <td>
+                            <span class="badge @(item.Status == "Hoàn thành" ? "bg-success" : "bg-warning text-dark")">
+                                @item.Status
+                            </span>
+                        </td>
+                        <td>
+                            <form asp-action="UpdateOrderStatus" method="post" class="d-flex gap-2">
+                                <input type="hidden" name="orderId" value="@item.Id" />
+                                <select name="status" class="form-select form-select-sm" style="width: 130px;">
+                                    <option value="Chờ xử lý">Chờ xử lý</option>
+                                    <option value="Đang giao">Đang giao</option>
+                                    <option value="Hoàn thành">Hoàn thành</option>
+                                    <option value="Đã hủy">Đã hủy</option>
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-dark">Lưu</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
