@@ -1,13 +1,23 @@
 @model IEnumerable<WebBanVLXD.ViewComponents.MenuItem>
+@{
+    var currentPath = Context.Request.Path.ToString().ToLower();
+}
 
 <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-2">
     @foreach (var item in Model)
     {
+        // Logic kiểm tra active
+        var isActive = false;
+        var link = $"/{item.Controller}/{item.Action}".ToLower();
+        if (currentPath == link || (item.Controller == "Home" && item.Action == "Index" && currentPath == "/"))
+        {
+            isActive = true;
+        }
+
         <li class="nav-item">
-            <a class="nav-link fw-bold text-uppercase px-3 py-2 text-dark" 
+            <a class="nav-link fw-bold text-uppercase px-3 py-2 @(isActive ? "text-orange" : "text-dark")" 
                asp-controller="@item.Controller" 
-               asp-action="@item.Action"
-               style="transition: color 0.2s ease;">
+               asp-action="@item.Action">
                 @item.Name
             </a>
         </li>

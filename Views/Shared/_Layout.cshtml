@@ -1,5 +1,10 @@
 ﻿<!DOCTYPE html>
+@{
+    // Lấy đường dẫn hiện tại của trình duyệt
+    var currentPath = Context.Request.Path.ToString().ToLower();
+}
 <html lang="vi">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,6 +13,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
+
 <body>
     <!-- TOP BAR -->
     <div class="top-bar text-white py-2" style="background-color: var(--bs-dark-blue); font-size: 0.85rem;">
@@ -31,15 +37,30 @@
                 <i class="fa-solid fa-cubes-stacked fs-3 me-2" style="color: var(--bs-orange);"></i>
                 <h4 class="mb-0 fw-bold" style="color: var(--bs-dark-blue); letter-spacing: 0.5px;">BUILDSMART</h4>
             </a>
-            
+
             <!-- Navigation -->
             <nav class="d-none d-lg-block">
                 <ul class="nav">
-                    <li class="nav-item"><a class="nav-link fw-medium nav-link-custom active" href="/">Trang chủ</a></li>
-                    <li class="nav-item"><a class="nav-link fw-medium nav-link-custom text-dark" href="/Product">Sản phẩm</a></li>
-                    <li class="nav-item"><a class="nav-link fw-medium nav-link-custom text-dark" href="/Projects">Dự án</a></li>
-                    <li class="nav-item"><a class="nav-link fw-medium nav-link-custom text-dark" href="/Quote">Báo giá</a></li>
-                    <li class="nav-item"><a class="nav-link fw-medium nav-link-custom text-dark" href="/Contact">Liên hệ</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-medium nav-link-custom @(currentPath == "/" || currentPath == "/home" || currentPath == "/home/index" ? "active" : "text-dark")"
+                           href="/">Trang chủ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-medium nav-link-custom @(currentPath.StartsWith("/product") ? "active" : "text-dark")"
+                           href="/Product">Sản phẩm</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-medium nav-link-custom @(currentPath.StartsWith("/projects") ? "active" : "text-dark")"
+                           href="/Projects">Dự án</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-medium nav-link-custom @(currentPath.StartsWith("/quote") ? "active" : "text-dark")"
+                           href="/Quote">Báo giá</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-medium nav-link-custom @(currentPath.StartsWith("/contact") ? "active" : "text-dark")"
+                           href="/Contact">Liên hệ</a>
+                    </li>
                 </ul>
             </nav>
 
@@ -49,7 +70,8 @@
                     <span class="input-group-text bg-light border-0 rounded-start-pill ps-3">
                         <i class="fa-solid fa-magnifying-glass text-muted"></i>
                     </span>
-                    <input type="text" name="query" class="form-control bg-light border-0 rounded-end-pill shadow-none" placeholder="Tìm kiếm vật liệu..." style="font-size: 0.9rem;">
+                    <input type="text" name="query" class="form-control bg-light border-0 rounded-end-pill shadow-none"
+                           placeholder="Tìm kiếm vật liệu..." style="font-size: 0.9rem;">
                 </form>
             </div>
 
@@ -57,111 +79,120 @@
             <div class="d-flex align-items-center gap-4">
                 <a href="/Cart" class="position-relative text-dark text-decoration-none">
                     <i class="fa-solid fa-cart-shopping fs-5"></i>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-orange text-white" style="font-size: 0.65rem; padding: 0.35em 0.5em;">0</span>
+                    <span
+                    class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-orange text-white"
+                    style="font-size: 0.65rem; padding: 0.35em 0.5em;">0</span>
                 </a>
 
                 @if (User.Identity != null && User.Identity.IsAuthenticated)
                 {
                     <div class="dropdown">
-                        <a href="#" class="text-dark dropdown-toggle text-decoration-none d-flex align-items-center" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a href="#" class="text-dark dropdown-toggle text-decoration-none d-flex align-items-center"
+                           id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fa-solid fa-user fs-5"></i>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userMenu">
-                            <li><span class="dropdown-item-text fw-bold" style="color: var(--bs-dark-blue);">@User.Identity.Name</span></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="/Account/ChangePassword">Đổi mật khẩu</a></li>
-                            <li><a class="dropdown-item text-danger" href="/Account/Logout">Đăng xuất</a></li>
-                        </ul>
-                    </div>
-                }
+                            <li><span class="dropdown-item-text fw-bold"
+                                          style="color: var(--bs-dark-blue);">@User.Identity.Name</span></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item" href="/Account/ChangePassword">Đổi mật khẩu</a></li>
+                                <li><a class="dropdown-item text-danger" href="/Account/Logout">Đăng xuất</a></li>
+                            </ul>
+                        </div>
+                    }
                 else
-                {
-                    <a href="/Account/Login" class="text-dark text-decoration-none">
-                        <i class="fa-solid fa-user fs-5"></i>
-                    </a>
-                }
+                    {
+                        <a href="/Account/Login" class="text-dark text-decoration-none">
+                            <i class="fa-solid fa-user fs-5"></i>
+                        </a>
+                    }
+                </div>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <main>
-        @RenderBody()
-    </main>
+        <main>
+            @RenderBody()
+        </main>
 
-    <!-- FOOTER -->
-    <footer class="pt-5 pb-3 mt-5 footer-custom">
-        <div class="container">
-            <div class="row g-4 mb-4">
-                <!-- Column 1 -->
-                <div class="col-lg-3 col-md-6 pe-lg-4">
-                    <a href="/" class="text-decoration-none d-flex align-items-center mb-3">
-                        <i class="fa-solid fa-cubes-stacked fs-3 me-2" style="color: var(--bs-orange);"></i>
-                        <h5 class="mb-0 fw-bold text-white">BUILDSMART</h5>
-                    </a>
-                    <p class="text-footer small mb-4">Đơn vị cung cấp vật liệu xây dựng hàng đầu Việt Nam. Chúng tôi cam kết mang lại giá trị bền vững cho mọi công trình với sản phẩm đạt chuẩn quốc tế.</p>
-                    <div class="d-flex gap-2">
-                        <a href="#" class="social-icon"><i class="fa-brands fa-facebook-f"></i></a>
-                        <a href="#" class="social-icon"><i class="fa-brands fa-youtube"></i></a>
-                        <a href="#" class="social-icon"><i class="fa-brands fa-linkedin-in"></i></a>
+        <!-- FOOTER -->
+        <footer class="pt-5 pb-3 mt-5 footer-custom">
+            <div class="container">
+                <div class="row g-4 mb-4">
+                    <!-- Column 1 -->
+                    <div class="col-lg-3 col-md-6 pe-lg-4">
+                        <a href="/" class="text-decoration-none d-flex align-items-center mb-3">
+                            <i class="fa-solid fa-cubes-stacked fs-3 me-2" style="color: var(--bs-orange);"></i>
+                            <h5 class="mb-0 fw-bold text-white">BUILDSMART</h5>
+                        </a>
+                        <p class="text-footer small mb-4">Đơn vị cung cấp vật liệu xây dựng hàng đầu Việt Nam. Chúng tôi cam
+                            kết mang lại giá trị bền vững cho mọi công trình với sản phẩm đạt chuẩn quốc tế.</p>
+                            <div class="d-flex gap-2">
+                                <a href="#" class="social-icon"><i class="fa-brands fa-facebook-f"></i></a>
+                                <a href="#" class="social-icon"><i class="fa-brands fa-youtube"></i></a>
+                                <a href="#" class="social-icon"><i class="fa-brands fa-linkedin-in"></i></a>
+                            </div>
+                        </div>
+
+                        <!-- Column 2 -->
+                        <div class="col-lg-3 col-md-6">
+                            <h6 class="text-white fw-bold mb-4">Sản phẩm chính</h6>
+                            <ul class="list-unstyled text-footer small">
+                                <li class="mb-2"><a href="#">Sắt thép xây dựng</a></li>
+                                <li class="mb-2"><a href="#">Xi măng & Bê tông</a></li>
+                                <li class="mb-2"><a href="#">Gạch xây & Ốp lát</a></li>
+                                <li class="mb-2"><a href="#">Cát, Đá, Sỏi</a></li>
+                                <li class="mb-2"><a href="#">Sơn & Chống thấm</a></li>
+                            </ul>
+                        </div>
+
+                        <!-- Column 3 -->
+                        <div class="col-lg-3 col-md-6">
+                            <h6 class="text-white fw-bold mb-4">Hỗ trợ khách hàng</h6>
+                            <ul class="list-unstyled text-footer small">
+                                <li class="mb-2"><a href="#">Chính sách vận chuyển</a></li>
+                                <li class="mb-2"><a href="#">Chính sách bảo hành</a></li>
+                                <li class="mb-2"><a href="#">Hình thức thanh toán</a></li>
+                                <li class="mb-2"><a href="#">Câu hỏi thường gặp</a></li>
+                                <li class="mb-2"><a href="#">Tuyển dụng</a></li>
+                            </ul>
+                        </div>
+
+                        <!-- Column 4 -->
+                        <div class="col-lg-3 col-md-6">
+                            <h6 class="text-white fw-bold mb-4">Liên hệ</h6>
+                            <ul class="list-unstyled text-footer small">
+                                <li class="mb-3 d-flex align-items-start">
+                                    <i class="fa-solid fa-location-dot mt-1 me-2 text-orange"></i>
+                                    <span>123 Đường Xây Dựng, Quận 1, TP. Hồ Chí Minh</span>
+                                </li>
+                                <li class="mb-3 d-flex align-items-center">
+                                    <i class="fa-solid fa-phone me-2 text-orange"></i>
+                                    <span>1900 123 456</span>
+                                </li>
+                                <li class="mb-3 d-flex align-items-center">
+                                    <i class="fa-solid fa-envelope me-2 text-orange"></i>
+                                    <span>contact@buildsmart.vn</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div
+                        class="d-flex justify-content-between align-items-center pt-4 border-top border-secondary text-footer small">
+                        <span>&copy; 2024 BuildSmart. All rights reserved.</span>
+                        <div>
+                            <a href="#" class="me-3">Điều khoản sử dụng</a>
+                            <a href="#">Chính sách bảo mật</a>
+                        </div>
                     </div>
                 </div>
-                
-                <!-- Column 2 -->
-                <div class="col-lg-3 col-md-6">
-                    <h6 class="text-white fw-bold mb-4">Sản phẩm chính</h6>
-                    <ul class="list-unstyled text-footer small">
-                        <li class="mb-2"><a href="#">Sắt thép xây dựng</a></li>
-                        <li class="mb-2"><a href="#">Xi măng & Bê tông</a></li>
-                        <li class="mb-2"><a href="#">Gạch xây & Ốp lát</a></li>
-                        <li class="mb-2"><a href="#">Cát, Đá, Sỏi</a></li>
-                        <li class="mb-2"><a href="#">Sơn & Chống thấm</a></li>
-                    </ul>
-                </div>
+            </footer>
 
-                <!-- Column 3 -->
-                <div class="col-lg-3 col-md-6">
-                    <h6 class="text-white fw-bold mb-4">Hỗ trợ khách hàng</h6>
-                    <ul class="list-unstyled text-footer small">
-                        <li class="mb-2"><a href="#">Chính sách vận chuyển</a></li>
-                        <li class="mb-2"><a href="#">Chính sách bảo hành</a></li>
-                        <li class="mb-2"><a href="#">Hình thức thanh toán</a></li>
-                        <li class="mb-2"><a href="#">Câu hỏi thường gặp</a></li>
-                        <li class="mb-2"><a href="#">Tuyển dụng</a></li>
-                    </ul>
-                </div>
+            <script src="~/lib/jquery/dist/jquery.min.js"></script>
+            <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+            @await RenderSectionAsync("Scripts", required: false)
+        </body>
 
-                <!-- Column 4 -->
-                <div class="col-lg-3 col-md-6">
-                    <h6 class="text-white fw-bold mb-4">Liên hệ</h6>
-                    <ul class="list-unstyled text-footer small">
-                        <li class="mb-3 d-flex align-items-start">
-                            <i class="fa-solid fa-location-dot mt-1 me-2 text-orange"></i> 
-                            <span>123 Đường Xây Dựng, Quận 1, TP. Hồ Chí Minh</span>
-                        </li>
-                        <li class="mb-3 d-flex align-items-center">
-                            <i class="fa-solid fa-phone me-2 text-orange"></i> 
-                            <span>1900 123 456</span>
-                        </li>
-                        <li class="mb-3 d-flex align-items-center">
-                            <i class="fa-solid fa-envelope me-2 text-orange"></i> 
-                            <span>contact@buildsmart.vn</span>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="d-flex justify-content-between align-items-center pt-4 border-top border-secondary text-footer small">
-                <span>&copy; 2024 BuildSmart. All rights reserved.</span>
-                <div>
-                    <a href="#" class="me-3">Điều khoản sử dụng</a>
-                    <a href="#">Chính sách bảo mật</a>
-                </div>
-            </div>
-        </div>
-    </footer>
-
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    @await RenderSectionAsync("Scripts", required: false)
-</body>
-</html>
+    </html>
