@@ -6,7 +6,6 @@
 }
 
 <div class="container my-4">
-    <!-- BREADCRUMB -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb mb-1">
             <li class="breadcrumb-item"><a href="/" class="text-muted text-decoration-none small">Trang chủ</a></li>
@@ -19,154 +18,44 @@
     </nav>
 
     <div class="row g-4">
-        <!-- SIDEBAR BỘ LỌC -->
         <div class="col-lg-3">
-            <div class="filter-sidebar bg-white p-4 rounded-3 shadow-sm border border-light sticky-top" style="top: 100px;">
-                <!-- Danh mục -->
-                <div class="filter-section mb-4">
-                    <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: var(--bs-dark-blue);">
-                        <i class="fa-solid fa-layer-group me-2"></i> Danh mục
-                    </h6>
-                    <ul class="list-unstyled mb-0 category-list-smart">
-                        <li class="mb-2">
-                            <a href="/Product" class="text-decoration-none @(Model.Category == "Tất cả sản phẩm" ? "text-orange fw-bold" : "text-muted")">Tất cả sản phẩm</a>
-                        </li>
-                        <li class="mb-2">
-                            <a href="/Product?category=Sắt+thép+xây+dựng" class="text-decoration-none @(Model.Category == "Sắt thép xây dựng" ? "text-orange fw-bold" : "text-muted")">Sắt thép xây dựng</a>
-                        </li>
-                        <li class="mb-2">
-                            <a href="/Product?category=Xi+măng" class="text-decoration-none @(Model.Category == "Xi măng" ? "text-orange fw-bold" : "text-muted")">Xi măng, Cát, Đá</a>
-                        </li>
-                        <li class="mb-2">
-                            <a href="/Product?category=Gạch+xây+dựng" class="text-decoration-none @(Model.Category == "Gạch xây dựng" ? "text-orange fw-bold" : "text-muted")">Gạch xây dựng</a>
-                        </li>
-                        <li class="mb-2">
-                            <a href="/Product?category=Sơn+%26+Chống+thấm" class="text-decoration-none @(Model.Category == "Sơn & Chống thấm" ? "text-orange fw-bold" : "text-muted")">Sơn & Chống thấm</a>
-                        </li>
-                        <li class="mb-2">
-                            <a href="/Product?category=Gạch+ốp+lát" class="text-decoration-none @(Model.Category == "Gạch ốp lát" ? "text-orange fw-bold" : "text-muted")">Gạch ốp lát</a>
-                        </li>
-                    </ul>
-                </div>
-
-                <hr class="text-muted opacity-25">
-
-                <!-- Khoảng giá -->
-                <div class="filter-section">
-                    <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: var(--bs-dark-blue);">
-                        <i class="fa-solid fa-tag me-2"></i> Khoảng giá
-                    </h6>
-                    <div class="d-flex align-items-center gap-2 mb-3">
-                        <input type="text" class="form-control form-control-sm text-center" placeholder="Từ">
-                        <span class="text-muted">-</span>
-                        <input type="text" class="form-control form-control-sm text-center" placeholder="Đến">
-                    </div>
-                    <button class="btn w-100 fw-bold text-white shadow-sm" style="background-color: var(--bs-dark-blue);">Áp dụng</button>
-                </div>
+            <div class="filter-sidebar bg-white p-4 rounded-3 shadow-sm border sticky-top" style="top: 100px;">
+                <h6 class="fw-bold mb-3"><i class="fa-solid fa-layer-group me-2"></i> Danh mục</h6>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2"><a href="/Product" class="text-decoration-none @(Model.Category == "Tất cả sản phẩm" ? "text-orange fw-bold" : "text-muted")">Tất cả sản phẩm</a></li>
+                    <li class="mb-2"><a href="/Product?category=Sắt+thép+xây+dựng" class="text-decoration-none @(Model.Category == "Sắt thép xây dựng" ? "text-orange fw-bold" : "text-muted")">Sắt thép xây dựng</a></li>
+                    <li class="mb-2"><a href="/Product?category=Xi+măng" class="text-decoration-none @(Model.Category == "Xi măng" ? "text-orange fw-bold" : "text-muted")">Xi măng, Cát, Đá</a></li>
+                    <li class="mb-2"><a href="/Product?category=Gạch+xây+dựng" class="text-decoration-none @(Model.Category == "Gạch xây dựng" ? "text-orange fw-bold" : "text-muted")">Gạch xây dựng</a></li>
+                    <li class="mb-2"><a href="/Product?category=Sơn+%26+Chống+thấm" class="text-decoration-none @(Model.Category == "Sơn & Chống thấm" ? "text-orange fw-bold" : "text-muted")">Sơn & Chống thấm</a></li>
+                    <li class="mb-2"><a href="/Product?category=Gạch+ốp+lát" class="text-decoration-none @(Model.Category == "Gạch ốp lát" ? "text-orange fw-bold" : "text-muted")">Gạch ốp lát</a></li>
+                </ul>
             </div>
         </div>
 
-        <!-- MAIN CONTENT -->
         <div class="col-lg-9">
-            <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
-                <p class="text-muted small mb-0">Hiển thị <strong>@(Model.Products.Count)</strong> sản phẩm</p>
-                <select class="form-select form-select-sm w-auto border-0 bg-light" onchange="location = this.value;">
-                    <option value="/Product?category=@Model.Category">Mới nhất</option>
-                    <option value="/Product?category=@Model.Category&sortOrder=price_asc">Giá tăng dần</option>
-                    <option value="/Product?category=@Model.Category&sortOrder=price_desc">Giá giảm dần</option>
-                </select>
-            </div>
-
-            <!-- NƠI HIỆN SẢN PHẨM -->
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4 mb-4" id="product-list-container">
-                @if (Model.Products != null && Model.Products.Any())
-                {
-                    @foreach (var item in Model.Products)
-                    {
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4" id="product-list-container">
+                @if (Model.Products != null && Model.Products.Any()) {
+                    @foreach (var item in Model.Products) {
                         <div class="col">
                             <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden bg-white">
-                                <!-- Khung ảnh -->
                                 <div style="height: 180px; background-color: #f8f9fa;">
-                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                    {
-                                        <img src="@item.ImageUrl" class="w-100 h-100 object-fit-cover" alt="@item.Name">
-                                    }
-                                    else
-                                    {
-                                        <div class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
-                                            <i class="fa-solid fa-image fa-3x"></i>
-                                        </div>
-                                    }
+                                    <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "https://placehold.co/400x300" : item.ImageUrl)" class="w-100 h-100 object-fit-cover">
                                 </div>
-
-                                <!-- Nội dung -->
                                 <div class="card-body p-3 d-flex flex-column">
-                                    <small class="text-muted d-block mb-1">@item.Category</small>
-                                    <h6 class="fw-bold text-dark mb-2" style="height: 2.8rem; overflow: hidden; line-height: 1.4;">
-                                        @item.Name
-                                    </h6>
-                                    <div class="mt-auto pt-2">
-                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                            <span class="text-orange fw-bold fs-5">@item.Price.ToString("N0") đ</span>
-                                            <small class="text-muted">/@item.Unit</small>
-                                        </div>
-                                        <a href="/Product/Details/@item.Id" class="btn btn-outline-primary btn-sm w-100 rounded-pill fw-bold py-2">
-                                            XEM CHI TIẾT
-                                        </a>
+                                    <small class="text-muted">@item.Category</small>
+                                    <h6 class="fw-bold mt-1">@item.Name</h6>
+                                    <div class="mt-auto">
+                                        <div class="text-orange fw-bold fs-5 mb-2">@item.Price.ToString("N0") đ</div>
+                                        <a href="/Product/Details/@item.Id" class="btn btn-outline-primary btn-sm w-100 rounded-pill">XEM CHI TIẾT</a>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     }
+                } else {
+                    <div class="col-12 text-center py-5"><h5>Không tìm thấy sản phẩm.</h5></div>
                 }
-                else
-                {
-                    <div class="col-12 text-center py-5">
-                        <i class="fa-solid fa-box-open fs-1 text-muted mb-3"></i>
-                        <h5 class="text-muted">Không tìm thấy sản phẩm nào trong danh mục này.</h5>
-                    </div>
-                }
-            </div>
-
-            <!-- Phân trang / Thông báo hết -->
-            <div id="no-more-products" class="text-center py-4" style="@(Model.PageNumber >= Model.TotalPages ? "" : "display:none")">
-                <hr class="opacity-25">
-                <p class="text-muted small fw-bold mt-2"> Đã hiển thị toàn bộ sản phẩm</p>
             </div>
         </div>
     </div>
 </div>
-
-@section Scripts {
-    <script>
-        let currentPage = 1;
-        let totalPages = parseInt('@Model.TotalPages');
-        let isLoading = false;
-
-        $(window).scroll(function () {
-            if (Math.ceil($(window).scrollTop() + $(window).height()) >= $(document).height() - 300) {
-                if (!isLoading && currentPage < totalPages) {
-                    loadMoreProducts();
-                }
-            }
-        });
-
-        function loadMoreProducts() {
-            isLoading = true;
-            currentPage++;
-            let category = '@Model.Category';
-            let sortOrder = '@Model.SortOrder';
-
-            $.ajax({
-                url: `/Product?handler=LoadMore&pageNumber=${currentPage}&category=${encodeURIComponent(category)}&sortOrder=${encodeURIComponent(sortOrder)}`,
-                type: 'GET',
-                success: function (data) {
-                    $('#product-list-container').append(data);
-                    isLoading = false;
-                    if (currentPage >= totalPages) $('#no-more-products').show();
-                },
-                error: function () { isLoading = false; }
-            });
-        }
-    </script>
-}

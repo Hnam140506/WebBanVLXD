@@ -16,18 +16,21 @@ namespace WebBanVLXD.Controllers
     public class AdminController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IWebHostEnvironment _env;
 
-        public AdminController(AppDbContext context)
+        public AdminController(AppDbContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
-        // Danh sách danh mục dùng chung cho Drop-down
-        private List<string> CategoryList = new List<string> { 
-            "Sắt thép xây dựng", "Xi măng", "Cát, Đá", "Gạch xây dựng", "Sơn & Chống thấm", "Gạch ốp lát", "Vật liệu khác" 
+        private List<string> CategoryList = new List<string> {
+            "Sắt thép xây dựng", "Xi măng, Cát, Đá", "Gạch xây dựng", "Sơn & Chống thấm", "Gạch ốp lát", "Thiết bị điện nước", "Vật liệu khác"
         };
 
-        // --- CODE CŨ CỦA BẠN (GIỮ NGUYÊN) ---
+        // ==========================================
+        // 1. DASHBOARD
+        // ==========================================
         public IActionResult Index()
         {
             var orders = _context.Orders.ToList();
@@ -48,6 +51,9 @@ namespace WebBanVLXD.Controllers
             return View();
         }
 
+        // ==========================================
+        // 2. QUẢN LÝ ĐƠN HÀNG
+        // ==========================================
         public IActionResult Orders()
         {
             var orders = _context.Orders.OrderByDescending(o => o.OrderDate).ToList();
@@ -66,28 +72,56 @@ namespace WebBanVLXD.Controllers
             return RedirectToAction("Orders");
         }
 
-        // --- PHẦN QUẢN LÝ SẢN PHẨM ---
-
+        // ==========================================
+        // 3. QUẢN LÝ SẢN PHẨM (Nâng cấp Nhiều ảnh & Phiên bản)
+        // ==========================================
         public IActionResult Products()
         {
-            var products = _context.Products.OrderByDescending(p => p.CreatedAt).ToList();
+            // Load sản phẩm kèm theo các phiên bản để hiển thị tổng tồn kho
+            var products = _context.Products.Include(p => p.Variants).OrderByDescending(p => p.CreatedAt).ToList();
             return View(products);
         }
 
-        public IActionResult CreateProduct() 
+        public IActionResult CreateProduct()
         {
-            ViewBag.Categories = CategoryList; // Truyền danh sách ra Drop-down
+            ViewBag.Categories = CategoryList;
             return View();
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateProduct(Product product, IFormFile? imageFile, [FromServices] IWebHostEnvironment env)
+        public async Task<IActionResult> CreateProduct(Product product, List<IFormFile> moreImages, 
+            string[] vNames, decimal[] vPrices, int[] vStocks)
         {
-            // Fix lỗi NULL Description nếu người dùng quên nhập
-            if (string.IsNullOrEmpty(product.Description)) product.Description = "Đang cập nhật nội dung...";
+            // 1. Xử lý lưu nhiều ảnh
+            if (moreImages != null && moreImages.Count > 0)
+            {
+                foreach (var file in moreImages)
+                {
+                    string url = await SaveImage(file);
+                    product.Images.Add(new ProductImage { Url = url });
+                }
+                product.ImageUrl = product.Images[0].Url; // Lấy ảnh đầu làm ảnh đại diện
+            }
 
-            if (imageFile != null) product.ImageUrl = await SaveImage(imageFile, env);
-            
+            // 2. Xử lý lưu các phiên bản (Variants)
+            if (vNames != null && vNames.Length > 0)
+            {
+                for (int i = 0; i < vNames.Length; i++)
+                {
+                    product.Variants.Add(new ProductVariant {
+                        Name = vNames[i],
+                        Price = vPrices[i],
+                        StockQuantity = vStocks[i]
+                    });
+                }
+                // Đồng bộ giá và tồn kho chính để hiển thị ở trang danh sách
+                product.Price = vPrices[0];
+                product.StockQuantity = vStocks.Sum();
+            }
+
+            if (string.IsNullOrEmpty(product.Description)) product.Description = "Đang cập nhật nội dung...";
+            if (string.IsNullOrEmpty(product.Brand)) product.Brand = "Chính hãng";
+
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
             return RedirectToAction("Products");
@@ -95,22 +129,30 @@ namespace WebBanVLXD.Controllers
 
         public IActionResult EditProduct(string id)
         {
-            var product = _context.Products.Find(id);
+            var product = _context.Products
+                .Include(p => p.Images)
+                .Include(p => p.Variants)
+                .FirstOrDefault(p => p.Id == id);
+                
             if (product == null) return NotFound();
-            
-            ViewBag.Categories = CategoryList; // Truyền danh sách ra Drop-down
+            ViewBag.Categories = CategoryList;
             return View(product);
         }
 
         [HttpPost]
-        public async Task<IActionResult> EditProduct(Product product, IFormFile? imageFile, [FromServices] IWebHostEnvironment env)
+        public async Task<IActionResult> EditProduct(Product product, List<IFormFile> moreImages)
         {
             var existing = _context.Products.AsNoTracking().FirstOrDefault(p => p.Id == product.Id);
-            
-            if (imageFile != null) product.ImageUrl = await SaveImage(imageFile, env);
-            else product.ImageUrl = existing?.ImageUrl;
+            if (existing == null) return NotFound();
 
-            if (string.IsNullOrEmpty(product.Description)) product.Description = existing?.Description ?? "Đang cập nhật...";
+            if (moreImages != null && moreImages.Count > 0)
+            {
+                foreach (var file in moreImages)
+                {
+                    string url = await SaveImage(file);
+                    _context.ProductImages.Add(new ProductImage { ProductId = product.Id, Url = url });
+                }
+            }
 
             _context.Update(product);
             await _context.SaveChangesAsync();
@@ -129,13 +171,87 @@ namespace WebBanVLXD.Controllers
             return RedirectToAction("Products");
         }
 
-        private async Task<string> SaveImage(IFormFile file, IWebHostEnvironment env)
+        // ==========================================
+        // 4. QUẢN LÝ NGƯỜI DÙNG
+        // ==========================================
+        public IActionResult Users()
         {
-            string folder = Path.Combine(env.WebRootPath, "images", "products");
+            return View(_context.Users.OrderByDescending(u => u.CreatedAt).ToList());
+        }
+
+        [HttpPost]
+        public IActionResult UpdateUserRole(string userId, string newRole)
+        {
+            var user = _context.Users.Find(userId);
+            if (user != null) { user.Role = newRole; _context.SaveChanges(); }
+            return RedirectToAction("Users");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteUser(string id)
+        {
+            var user = _context.Users.Find(id);
+            if (user != null) { _context.Users.Remove(user); _context.SaveChanges(); }
+            return RedirectToAction("Users");
+        }
+
+        // ==========================================
+        // 5. QUẢN LÝ MÃ GIẢM GIÁ
+        // ==========================================
+        public IActionResult Coupons()
+        {
+            return View(_context.Coupons.OrderByDescending(c => c.ExpiryDate).ToList());
+        }
+
+        public IActionResult CreateCoupon() => View();
+
+        [HttpPost]
+        public IActionResult CreateCoupon(Coupon coupon)
+        {
+            _context.Coupons.Add(coupon);
+            _context.SaveChanges();
+            return RedirectToAction("Coupons");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteCoupon(string id)
+        {
+            var coupon = _context.Coupons.Find(id);
+            if (coupon != null) { _context.Coupons.Remove(coupon); _context.SaveChanges(); }
+            return RedirectToAction("Coupons");
+        }
+
+        // ==========================================
+        // 6. QUẢN LÝ ĐÁNH GIÁ (Reviews)
+        // ==========================================
+        public IActionResult Reviews()
+        {
+            return View(_context.Reviews.OrderByDescending(r => r.CreatedAt).ToList());
+        }
+
+        [HttpPost]
+        public IActionResult DeleteReview(string id)
+        {
+            var review = _context.Reviews.Find(id);
+            if (review != null) { _context.Reviews.Remove(review); _context.SaveChanges(); }
+            return RedirectToAction("Reviews");
+        }
+
+        // ==========================================
+        // HÀM HỖ TRỢ (HELPER)
+        // ==========================================
+        private async Task<string> SaveImage(IFormFile file)
+        {
+            string folder = Path.Combine(_env.WebRootPath, "images", "products");
             if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+            
             string fileName = Guid.NewGuid().ToString() + "_" + file.FileName;
             string filePath = Path.Combine(folder, fileName);
-            using (var fs = new FileStream(filePath, FileMode.Create)) { await file.CopyToAsync(fs); }
+            
+            using (var fs = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(fs);
+            }
             return "/images/products/" + fileName;
         }
     }

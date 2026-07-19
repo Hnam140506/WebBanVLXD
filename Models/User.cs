@@ -20,5 +20,10 @@ namespace WebBanVLXD.Models
 
         public string? ResetPasswordToken { get; set; }
         public DateTime? ResetPasswordTokenExpiry { get; set; }
+        public string? FullName { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public string? Gender { get; set; } // Nam, Nữ, Khác
+        public string? PhoneNumber { get; set; }
+        public string? Address { get; set; }
     }
 }

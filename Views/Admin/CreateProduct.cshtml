@@ -1,46 +1,54 @@
 @model WebBanVLXD.Models.Product
-@{
-    Layout = "_AdminLayout";
-    var categories = ViewBag.Categories as List<string> ?? new List<string>();
-}
+@{ Layout = "_AdminLayout"; var categories = ViewBag.Categories as List<string> ?? new List<string>(); }
+
 <div class="card card-admin p-4 shadow-sm">
-    <h5 class="fw-bold mb-4 text-primary">Thêm sản phẩm mới</h5>
+    <h5 class="fw-bold mb-4 text-primary">Thêm sản phẩm chuyên sâu</h5>
     <form asp-action="CreateProduct" method="post" enctype="multipart/form-data">
         <div class="row g-3">
-            <div class="col-md-8">
-                <label class="form-label fw-bold">Tên sản phẩm *</label>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Tên sản phẩm chính</label>
                 <input asp-for="Name" class="form-control" required />
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label fw-bold">Danh mục</label>
                 <select asp-for="Category" class="form-select">
-                    @foreach (var cat in categories)
-                    {
-                        <option value="@cat">@cat</option>
-                    }
+                    @foreach (var cat in categories) { <option value="@cat">@cat</option> }
                 </select>
             </div>
-            <div class="col-md-4">
-                <label class="form-label fw-bold">Giá bán (đ) *</label>
-                <input asp-for="Price" type="number" class="form-control" required />
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Chọn nhiều ảnh (Slider)</label>
+                <input type="file" name="moreImages" class="form-control" multiple accept="image/*" />
             </div>
-            <div class="col-md-4">
-                <label class="form-label fw-bold">Đơn vị</label>
-                <input asp-for="Unit" class="form-control" placeholder="Bao, Cái, Tấn..." />
+
+            <!-- PHẦN PHIÊN BẢN -->
+            <div class="col-12 mt-4 bg-light p-3 rounded border">
+                <div class="d-flex justify-content-between mb-3">
+                    <h6 class="fw-bold m-0">Phiên bản & Giá riêng</h6>
+                    <button type="button" class="btn btn-sm btn-dark" onclick="addVariant()">+ Thêm phiên bản</button>
+                </div>
+                <div id="variant-container">
+                    <div class="row g-2 mb-2 variant-item">
+                        <div class="col-md-5"><input type="text" name="vNames" class="form-control" placeholder="Tên (VD: Màu đỏ)" required></div>
+                        <div class="col-md-3"><input type="number" name="vPrices" class="form-control" placeholder="Giá" required></div>
+                        <div class="col-md-3"><input type="number" name="vStocks" class="form-control" placeholder="Tồn kho" required></div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-4">
-                <label class="form-label fw-bold">Ảnh sản phẩm</label>
-                <input type="file" name="imageFile" class="form-control" />
-            </div>
+
             <div class="col-12">
-                <label class="form-label fw-bold text-danger">Mô tả sản phẩm (Bắt buộc) *</label>
-                <textarea asp-for="Description" class="form-control" rows="4" required
-                          placeholder="Nhập mô tả chi tiết sản phẩm tại đây..."></textarea>
+                <label class="form-label fw-bold">Mô tả sản phẩm</label>
+                <textarea asp-for="Description" class="form-control" rows="4"></textarea>
             </div>
-            <div class="col-12 mt-4 text-end">
-                <a asp-action="Products" class="btn btn-light border px-4">Quay lại</a>
-                <button type="submit" class="btn btn-primary px-5">Lưu sản phẩm</button>
+            <div class="col-12 text-end">
+                <button type="submit" class="btn btn-primary px-5 fw-bold">LƯU SẢN PHẨM</button>
             </div>
         </div>
     </form>
 </div>
+
+<script>
+    function addVariant() {
+        const row = `<div class="row g-2 mb-2 variant-item"><div class="col-md-5"><input type="text" name="vNames" class="form-control" required></div><div class="col-md-3"><input type="number" name="vPrices" class="form-control" required></div><div class="col-md-3"><input type="number" name="vStocks" class="form-control" required></div><div class="col-md-1"><button type="button" class="btn btn-danger" onclick="this.closest('.variant-item').remove()">X</button></div></div>`;
+        document.getElementById('variant-container').insertAdjacentHTML('beforeend', row);
+    }
+</script>

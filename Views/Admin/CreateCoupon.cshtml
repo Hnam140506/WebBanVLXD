@@ -1,0 +1,25 @@
+@model WebBanVLXD.Models.Coupon
+@{ Layout = "_AdminLayout"; }
+<div class="card card-admin p-4">
+    <h5 class="fw-bold mb-4">Tạo mã giảm giá mới</h5>
+    <form asp-action="CreateCoupon" method="post">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Mã Code (VD: GIAM30)</label>
+                <input asp-for="Code" class="form-control" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Phần trăm giảm (%)</label>
+                <input asp-for="DiscountPercent" type="number" class="form-control" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Ngày hết hạn</label>
+                <input asp-for="ExpiryDate" type="date" class="form-control" required />
+            </div>
+            <div class="col-12 mt-4">
+                <button type="submit" class="btn btn-primary px-4">Lưu mã</button>
+                <a asp-action="Coupons" class="btn btn-light border ms-2">Hủy</a>
+            </div>
+        </div>
+    </form>
+</div>

@@ -10,6 +10,8 @@ using System.Net;
 using System.Net.Mail;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+
 
 namespace WebBanVLXD.Controllers
 {
@@ -260,6 +262,113 @@ namespace WebBanVLXD.Controllers
             };
             var mail = new MailMessage("nam1452000@gmail.com", toEmail, subject, body) { IsBodyHtml = true };
             await smtp.SendMailAsync(mail);
+        }
+        // ==========================================
+        // 4. QUẢN LÝ NGƯỜI DÙNG
+        // ==========================================
+        public IActionResult Users()
+        {
+            var users = _context.Users.OrderByDescending(u => u.CreatedAt).ToList();
+            return View(users);
+        }
+
+        [HttpPost]
+        public IActionResult UpdateUserRole(string userId, string newRole)
+        {
+            var user = _context.Users.Find(userId);
+            if (user != null)
+            {
+                user.Role = newRole;
+                _context.SaveChanges();
+            }
+            return RedirectToAction("Users");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteUser(string id)
+        {
+            var user = _context.Users.Find(id);
+            if (user != null) { _context.Users.Remove(user); _context.SaveChanges(); }
+            return RedirectToAction("Users");
+        }
+
+        // ==========================================
+        // 5. QUẢN LÝ MÃ GIẢM GIÁ (COUPON)
+        // ==========================================
+        public IActionResult Coupons()
+        {
+            var coupons = _context.Coupons.OrderByDescending(c => c.ExpiryDate).ToList();
+            return View(coupons);
+        }
+
+        public IActionResult CreateCoupon() => View();
+
+        [HttpPost]
+        public IActionResult CreateCoupon(Coupon coupon)
+        {
+            if (ModelState.IsValid)
+            {
+                _context.Coupons.Add(coupon);
+                _context.SaveChanges();
+                return RedirectToAction("Coupons");
+            }
+            return View(coupon);
+        }
+
+        [HttpPost]
+        public IActionResult DeleteCoupon(string id)
+        {
+            var coupon = _context.Coupons.Find(id);
+            if (coupon != null) { _context.Coupons.Remove(coupon); _context.SaveChanges(); }
+            return RedirectToAction("Coupons");
+        }
+
+        // ==========================================
+        // 6. QUẢN LÝ ĐÁNH GIÁ (REVIEW)
+        // ==========================================
+        public IActionResult Reviews()
+        {
+            // Lấy đánh giá kèm thông tin tên sản phẩm (nếu cần)
+            var reviews = _context.Reviews.OrderByDescending(r => r.CreatedAt).ToList();
+            return View(reviews);
+        }
+
+        [HttpPost]
+        public IActionResult DeleteReview(string id)
+        {
+            var review = _context.Reviews.Find(id);
+            if (review != null) { _context.Reviews.Remove(review); _context.SaveChanges(); }
+            return RedirectToAction("Reviews");
+        }
+        [Authorize]
+        public IActionResult Profile()
+        {
+            var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var user = _context.Users.Find(userId);
+            if (user == null) return NotFound();
+            return View(user);
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> UpdateProfile(User model)
+        {
+            var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var user = _context.Users.Find(userId);
+
+            if (user != null)
+            {
+                user.FullName = model.FullName;
+                user.DateOfBirth = model.DateOfBirth;
+                user.Gender = model.Gender;
+                user.PhoneNumber = model.PhoneNumber;
+                user.Address = model.Address;
+
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+                ViewBag.Message = "Cập nhật thông tin thành công!";
+            }
+            return View("Profile", user);
         }
     }
 }

@@ -49,18 +49,6 @@
                         <a class="nav-link fw-medium nav-link-custom @(currentPath.StartsWith("/product") ? "active" : "text-dark")"
                            href="/Product">Sản phẩm</a>
                     </li>
-
-                    @* Nút Quản trị dành riêng cho Admin *@
-                    @if (User.IsInRole("Admin"))
-                    {
-                        <li class="nav-item">
-                            <a class="nav-link fw-bold text-danger nav-link-custom @(currentPath.StartsWith("/admin") ? "active" : "")"
-                               href="/Admin">
-                                <i class="fa-solid fa-gauge-high me-1"></i> QUẢN TRỊ
-                            </a>
-                        </li>
-                    }
-
                     <li class="nav-item">
                         <a class="nav-link fw-medium nav-link-custom @(currentPath.StartsWith("/projects") ? "active" : "text-dark")"
                            href="/Projects">Dự án</a>
@@ -104,10 +92,12 @@
                             <span class="fw-bold small d-none d-md-inline">@User.Identity.Name</span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 rounded-3" aria-labelledby="userMenu">
-                            <li><span class="dropdown-item-text text-muted small">Tài khoản: <b>@User.Identity.Name</b></span></li>
+                            <li><span class="dropdown-item-text text-muted small">Chào, <b>@User.Identity.Name</b></span></li>
                             <li><hr class="dropdown-divider"></li>
                             
-                            @* Thêm lối tắt vào trang Admin trong Dropdown *@
+                            @* LINK HỒ SƠ MỚI *@
+                            <li><a class="dropdown-item" href="/Account/Profile"><i class="fa-solid fa-address-card me-2"></i>Thông tin cá nhân</a></li>
+                            
                             @if (User.IsInRole("Admin"))
                             {
                                 <li><a class="dropdown-item fw-bold text-primary" href="/Admin"><i class="fa-solid fa-chart-line me-2"></i>Dashboard Admin</a></li>

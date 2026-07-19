@@ -1,0 +1,58 @@
+@model IEnumerable<WebBanVLXD.Models.User>
+@{ ViewData["Title"] = "Quản lý Người dùng"; Layout = "_AdminLayout"; }
+
+<div class="card card-admin p-4 shadow-sm border-0">
+    <h5 class="fw-bold mb-4">Danh sách thành viên</h5>
+    <table class="table table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Tên người dùng</th><th>Email</th><th>Quyền</th><th>Ngày tạo</th><th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in Model) {
+            <tr>
+                <td><b>@user.UserName</b></td>
+                <td>
+                    @{
+                        var email = user.Email;
+                        if (!string.IsNullOrEmpty(email) && email.Contains("@"))
+                        {
+                            var parts = email.Split('@');
+                            var namePart = parts[0];
+                            var domainPart = parts[1];
+                            
+                            // Lấy 2 ký tự đầu và thêm ****
+                            var maskedName = namePart.Length > 2 
+                                ? namePart.Substring(0, 2) + "****" 
+                                : namePart + "****";
+                                
+                            @(maskedName + "@" + domainPart)
+                        }
+                        else
+                        {
+                            @email
+                        }
+                    }
+                </td>
+                <td><span class="badge @(user.Role == "Admin" ? "bg-danger" : "bg-primary")">@user.Role</span></td>
+                <td>@user.CreatedAt.ToString("dd/MM/yyyy")</td>
+                <td>
+                    <form asp-action="UpdateUserRole" method="post" class="d-inline-flex gap-2">
+                        <input type="hidden" name="userId" value="@user.Id" />
+                        <select name="newRole" class="form-select form-select-sm" style="width: 110px;">
+                            <option value="Customer">Customer</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-dark">Lưu</button>
+                    </form>
+                    <form asp-action="DeleteUser" method="post" class="d-inline" onsubmit="return confirm('Xóa người dùng này?')">
+                        <input type="hidden" name="id" value="@user.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger ms-2"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>

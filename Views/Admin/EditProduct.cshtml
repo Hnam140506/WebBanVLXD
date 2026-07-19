@@ -1,45 +1,67 @@
 @model WebBanVLXD.Models.Product
 @{
+    ViewData["Title"] = "Sửa sản phẩm";
     Layout = "_AdminLayout";
-    // Ép kiểu và kiểm tra nếu null thì gán bằng một danh sách rỗng để không bị lỗi vòng lặp
     var categories = ViewBag.Categories as List<string> ?? new List<string>();
 }
-<div class="card card-admin p-4 shadow-sm">
-    <h5 class="fw-bold mb-4">Sửa sản phẩm</h5>
+
+<div class="card card-admin p-4 shadow-sm border-0">
+    <h5 class="fw-bold mb-4 text-success"><i class="fa-solid fa-pen-to-square me-2"></i>Chỉnh sửa sản phẩm</h5>
+
     <form asp-action="EditProduct" method="post" enctype="multipart/form-data">
         <input type="hidden" asp-for="Id" />
         <div class="row g-3">
             <div class="col-md-8">
-                <label class="form-label fw-bold">Tên sản phẩm</label>
+                <label class="form-label fw-bold small">Tên sản phẩm *</label>
                 <input asp-for="Name" class="form-control" required />
             </div>
             <div class="col-md-4">
-                <label class="form-label fw-bold">Danh mục</label>
-                <select asp-for="Category" class="form-select">
+                <label class="form-label fw-bold small">Danh mục</label>
+                <select asp-for="Category" class="form-select" required>
                     @foreach (var cat in categories)
                     {
                         <option value="@cat" selected="@(Model.Category == cat)">@cat</option>
                     }
                 </select>
             </div>
-            <div class="col-md-6 text-center">
-                <label class="form-label fw-bold">Ảnh hiện tại</label><br>
-                <img src="@Model.ImageUrl" width="120" class="mb-2 rounded border shadow-sm">
-                <input type="file" name="imageFile" class="form-control mt-2" />
+
+            <div class="col-md-4 text-center border-end">
+                <label class="form-label fw-bold small d-block">Ảnh hiện tại</label>
+                <img src="@Model.ImageUrl" class="rounded border mb-2 shadow-sm"
+                     style="width: 150px; height: 150px; object-fit: cover;">
+                <input type="file" name="imageFile" class="form-control form-control-sm" accept="image/*" />
             </div>
-            <div class="col-md-6">
-                <label class="form-label fw-bold">Giá bán (đ)</label>
-                <input asp-for="Price" type="number" class="form-control" required />
-                <label class="form-label fw-bold mt-3">Đơn vị</label>
-                <input asp-for="Unit" class="form-control" />
+
+            <div class="col-md-8">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Giá hiện tại (đ) *</label>
+                        <input asp-for="Price" type="number" class="form-control text-orange fw-bold" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Đơn vị</label>
+                        <input asp-for="Unit" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Thương hiệu</label>
+                        <input asp-for="Brand" class="form-control" placeholder="Ví dụ: Hòa Phát, Hà Tiên..." />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Giá cũ (đ)</label>
+                        <input asp-for="OldPrice" type="number" class="form-control" />
+                    </div>
+                </div>
             </div>
+
             <div class="col-12">
-                <label class="form-label fw-bold">Mô tả sản phẩm</label>
-                <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                <label class="form-label fw-bold small">Mô tả chi tiết</label>
+                <textarea asp-for="Description" class="form-control" rows="5" required></textarea>
             </div>
+
             <div class="col-12 mt-4 text-end">
-                <a asp-action="Products" class="btn btn-light border px-4">Hủy bỏ</a>
-                <button type="submit" class="btn btn-success px-5">Cập nhật</button>
+                <hr>
+                <a asp-action="Products" class="btn btn-light border px-4">Hủy</a>
+                <button type="submit" class="btn btn-success px-5 fw-bold shadow-sm">CẬP NHẬT</button>
             </div>
         </div>
     </form>

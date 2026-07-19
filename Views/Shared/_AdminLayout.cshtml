@@ -8,78 +8,78 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
-            :root {
-                --admin-blue: #0b224c;
-                --admin-orange: #f57224;
-                --admin-bg: #f4f7f6;
-            }
+        :root {
+            --admin-blue: #0b224c;
+            --admin-orange: #f57224;
+            --admin-bg: #f4f7f6;
+        }
 
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: var(--admin-bg);
-            }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--admin-bg);
+        }
 
-            /* Sidebar Styles */
-            #wrapper {
-                display: flex;
-                align-items: stretch;
-            }
+        /* Sidebar Styles */
+        #wrapper {
+            display: flex;
+            align-items: stretch;
+        }
 
-            #sidebar {
-                min-width: 250px;
-                max-width: 250px;
-                background: var(--admin-blue);
-                color: #fff;
-                transition: all 0.3s;
-                min-height: 100vh;
-            }
+        #sidebar {
+            min-width: 250px;
+            max-width: 250px;
+            background: var(--admin-blue);
+            color: #fff;
+            transition: all 0.3s;
+            min-height: 100vh;
+        }
 
-            #sidebar .sidebar-header {
-                padding: 20px;
-                background: rgba(0, 0, 0, 0.1);
-                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            }
+        #sidebar .sidebar-header {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
 
-            #sidebar ul.components {
-                padding: 20px 0;
-            }
+        #sidebar ul.components {
+            padding: 20px 0;
+        }
 
-            #sidebar ul li a {
-                padding: 12px 20px;
-                display: block;
-                color: rgba(255, 255, 255, 0.7);
-                text-decoration: none;
-                transition: 0.3s;
-                font-size: 0.95rem;
-            }
+        #sidebar ul li a {
+            padding: 12px 20px;
+            display: block;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: 0.3s;
+            font-size: 0.95rem;
+        }
 
-            #sidebar ul li a:hover,
-            #sidebar ul li a.active {
-                color: #fff;
-                background: rgba(255, 255, 255, 0.1);
-                border-left: 4px solid var(--admin-orange);
-            }
+        #sidebar ul li a:hover,
+        #sidebar ul li a.active {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid var(--admin-orange);
+        }
 
-            /* Content Area */
-            #content {
-                width: 100%;
-                padding: 20px;
-            }
+        /* Content Area */
+        #content {
+            width: 100%;
+            padding: 20px;
+        }
 
-            .top-nav {
-                background: #fff;
-                padding: 15px 25px;
-                border-radius: 10px;
-                margin-bottom: 30px;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
-            }
+        .top-nav {
+            background: #fff;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        }
 
-            /* Card Styles */
-            .card-admin {
-                border: none;
-                border-radius: 12px;
-                box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-            }
+        /* Card Styles */
+        .card-admin {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
     </style>
 </head>
 
@@ -89,7 +89,7 @@
         <!-- SIDEBAR -->
         <nav id="sidebar">
             <div class="sidebar-header text-center">
-                <h4 class="fw-bold mb-0 text-orange">BUILDSMART</h4>
+                <h4 class="fw-bold mb-0" style="color: var(--admin-orange);">BUILDSMART</h4>
                 <small class="opacity-50">Hệ thống Quản trị</small>
             </div>
 
@@ -100,31 +100,27 @@
                     </a>
                 </li>
                 <li>
-    <a href="/Admin/Products" class="@(Context.Request.Path.ToString().ToLower().StartsWith("/admin/products") ? "active" : "")">
-        <i class="fa-solid fa-box-open me-2"></i> Quản lý Sản phẩm
-    </a>
-</li>
+                    <a href="/Admin/Products" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/product") ? "active" : "")">
+                        <i class="fa-solid fa-box-open me-2"></i> Quản lý Sản phẩm
+                    </a>
+                </li>
                 <li>
-                    <a href="/Admin/Orders"
-                       class="@(Context.Request.Path.ToString().ToLower().StartsWith("/admin/orders") ? "active" : "")">
+                    <a href="/Admin/Orders" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/order") ? "active" : "")">
                         <i class="fa-solid fa-file-invoice-dollar me-2"></i> Quản lý Đơn hàng
                     </a>
                 </li>
                 <li>
-                    <a href="/Admin/Users"
-                       class="@(Context.Request.Path.ToString().ToLower().StartsWith("/admin/users") ? "active" : "")">
+                    <a href="/Admin/Users" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/user") ? "active" : "")">
                         <i class="fa-solid fa-users me-2"></i> Quản lý Người dùng
                     </a>
                 </li>
                 <li>
-                    <a href="/Admin/Coupons"
-                       class="@(Context.Request.Path.ToString().ToLower().StartsWith("/admin/coupons") ? "active" : "")">
+                    <a href="/Admin/Coupons" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/coupon") ? "active" : "")">
                         <i class="fa-solid fa-ticket me-2"></i> Mã giảm giá
                     </a>
                 </li>
                 <li>
-                    <a href="/Admin/Reviews"
-                       class="@(Context.Request.Path.ToString().ToLower().StartsWith("/admin/reviews") ? "active" : "")">
+                    <a href="/Admin/Reviews" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/review") ? "active" : "")">
                         <i class="fa-solid fa-star me-2"></i> Đánh giá
                     </a>
                 </li>

@@ -1,0 +1,59 @@
+@model WebBanVLXD.Models.User
+@{
+    ViewData["Title"] = "Hồ sơ cá nhân";
+}
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 rounded-4 p-4">
+                <h4 class="fw-bold mb-4"><i class="fa-solid fa-user-gear me-2 text-primary"></i>Thông tin tài khoản</h4>
+                
+                @if (ViewBag.Message != null)
+                {
+                    <div class="alert alert-success">@ViewBag.Message</div>
+                }
+
+                <form asp-action="UpdateProfile" method="post">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Tên đăng nhập (Không thể sửa)</label>
+                            <input type="text" class="form-control bg-light" value="@Model.UserName" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Email</label>
+                            <input type="text" class="form-control bg-light" value="@Model.Email" readonly>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Họ và tên</label>
+                            <input asp-for="FullName" class="form-control" placeholder="Nhập họ tên đầy đủ">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Ngày sinh</label>
+                            <input asp-for="DateOfBirth" type="date" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Giới tính</label>
+                            <select asp-for="Gender" class="form-select">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                                <option value="Khác">Khác</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Số điện thoại</label>
+                            <input asp-for="PhoneNumber" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Địa chỉ</label>
+                            <input asp-for="Address" class="form-control">
+                        </div>
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow-sm">LƯU THAY ĐỔI</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>   

@@ -14,6 +14,8 @@ using System.Net;
 using System.Net.Mail;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+
 
 namespace WebBanVLXD.Controllers
 {
@@ -265,6 +267,113 @@ namespace WebBanVLXD.Controllers
             var mail = new MailMessage("nam1452000@gmail.com", toEmail, subject, body) { IsBodyHtml = true };
             await smtp.SendMailAsync(mail);
         }
+        // ==========================================
+        // 4. QUẢN LÝ NGƯỜI DÙNG
+        // ==========================================
+        public IActionResult Users()
+        {
+            var users = _context.Users.OrderByDescending(u => u.CreatedAt).ToList();
+            return View(users);
+        }
+
+        [HttpPost]
+        public IActionResult UpdateUserRole(string userId, string newRole)
+        {
+            var user = _context.Users.Find(userId);
+            if (user != null)
+            {
+                user.Role = newRole;
+                _context.SaveChanges();
+            }
+            return RedirectToAction("Users");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteUser(string id)
+        {
+            var user = _context.Users.Find(id);
+            if (user != null) { _context.Users.Remove(user); _context.SaveChanges(); }
+            return RedirectToAction("Users");
+        }
+
+        // ==========================================
+        // 5. QUẢN LÝ MÃ GIẢM GIÁ (COUPON)
+        // ==========================================
+        public IActionResult Coupons()
+        {
+            var coupons = _context.Coupons.OrderByDescending(c => c.ExpiryDate).ToList();
+            return View(coupons);
+        }
+
+        public IActionResult CreateCoupon() => View();
+
+        [HttpPost]
+        public IActionResult CreateCoupon(Coupon coupon)
+        {
+            if (ModelState.IsValid)
+            {
+                _context.Coupons.Add(coupon);
+                _context.SaveChanges();
+                return RedirectToAction("Coupons");
+            }
+            return View(coupon);
+        }
+
+        [HttpPost]
+        public IActionResult DeleteCoupon(string id)
+        {
+            var coupon = _context.Coupons.Find(id);
+            if (coupon != null) { _context.Coupons.Remove(coupon); _context.SaveChanges(); }
+            return RedirectToAction("Coupons");
+        }
+
+        // ==========================================
+        // 6. QUẢN LÝ ĐÁNH GIÁ (REVIEW)
+        // ==========================================
+        public IActionResult Reviews()
+        {
+            // Lấy đánh giá kèm thông tin tên sản phẩm (nếu cần)
+            var reviews = _context.Reviews.OrderByDescending(r => r.CreatedAt).ToList();
+            return View(reviews);
+        }
+
+        [HttpPost]
+        public IActionResult DeleteReview(string id)
+        {
+            var review = _context.Reviews.Find(id);
+            if (review != null) { _context.Reviews.Remove(review); _context.SaveChanges(); }
+            return RedirectToAction("Reviews");
+        }
+        [Authorize]
+        public IActionResult Profile()
+        {
+            var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var user = _context.Users.Find(userId);
+            if (user == null) return NotFound();
+            return View(user);
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> UpdateProfile(User model)
+        {
+            var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var user = _context.Users.Find(userId);
+
+            if (user != null)
+            {
+                user.FullName = model.FullName;
+                user.DateOfBirth = model.DateOfBirth;
+                user.Gender = model.Gender;
+                user.PhoneNumber = model.PhoneNumber;
+                user.Address = model.Address;
+
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+                ViewBag.Message = "Cập nhật thông tin thành công!";
+            }
+            return View("Profile", user);
+        }
     }
 }
 
@@ -276,10 +385,16 @@ using Microsoft.AspNetCore.Mvc;
 using WebBanVLXD.Models;
 using System.Linq;
 using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
+using System.IO;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 
 namespace WebBanVLXD.Controllers
 {
-    [Authorize(Roles = "Admin")] // Chỉ Admin mới vào được
+    [Authorize(Roles = "Admin")]
     public class AdminController : Controller
     {
         private readonly AppDbContext _context;
@@ -289,18 +404,24 @@ namespace WebBanVLXD.Controllers
             _context = context;
         }
 
-        // Đây là hàm xử lý cho địa chỉ /Admin
+        private List<string> CategoryList = new List<string> {
+         "Sắt thép",
+         "Xi măng, Cát, Đá",
+         "Gạch xây dựng",
+         "Sơn & Chống thấm",
+         "Gạch ốp lát",
+         "Vật liệu khác"
+        };
+
+        // --- 1. DASHBOARD ---
         public IActionResult Index()
         {
             var orders = _context.Orders.ToList();
-            
-            // Tính toán các con số thống kê
             ViewBag.TotalRevenue = orders.Where(o => o.Status == "Hoàn thành").Sum(o => o.TotalAmount);
             ViewBag.OrderCount = orders.Count;
             ViewBag.ProductCount = _context.Products.Count();
             ViewBag.UserCount = _context.Users.Count();
 
-            // Dữ liệu cho biểu đồ 7 ngày
             var reportData = _context.Orders
                 .Where(o => o.OrderDate >= DateTime.Now.AddDays(-7))
                 .GroupBy(o => o.OrderDate.Date)
@@ -313,7 +434,7 @@ namespace WebBanVLXD.Controllers
             return View();
         }
 
-        // Hàm xử lý cho địa chỉ /Admin/Orders
+        // --- 2. QUẢN LÝ ĐƠN HÀNG ---
         public IActionResult Orders()
         {
             var orders = _context.Orders.OrderByDescending(o => o.OrderDate).ToList();
@@ -331,6 +452,156 @@ namespace WebBanVLXD.Controllers
             }
             return RedirectToAction("Orders");
         }
+
+        // --- 3. QUẢN LÝ SẢN PHẨM ---
+        public IActionResult Products()
+        {
+            var products = _context.Products.OrderByDescending(p => p.CreatedAt).ToList();
+            return View(products);
+        }
+
+        public IActionResult CreateProduct()
+        {
+            ViewBag.Categories = CategoryList;
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateProduct(Product product, IFormFile? imageFile, [FromServices] IWebHostEnvironment env)
+        {
+            if (string.IsNullOrEmpty(product.Description)) product.Description = "Đang cập nhật nội dung...";
+            if (imageFile != null) product.ImageUrl = await SaveImage(imageFile, env);
+            _context.Products.Add(product);
+            await _context.SaveChangesAsync();
+            return RedirectToAction("Products");
+        }
+
+        public IActionResult EditProduct(string id)
+        {
+            var product = _context.Products.Find(id);
+            if (product == null) return NotFound();
+            ViewBag.Categories = CategoryList;
+            return View(product);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> EditProduct(Product product, IFormFile? imageFile, [FromServices] IWebHostEnvironment env)
+        {
+            var existing = _context.Products.AsNoTracking().FirstOrDefault(p => p.Id == product.Id);
+            if (existing == null) return NotFound();
+
+            // XỬ LÝ LỖI NULL BRAND TẠI ĐÂY
+            if (string.IsNullOrEmpty(product.Brand))
+            {
+                product.Brand = existing.Brand ?? "Đang cập nhật";
+            }
+
+            // Xử lý ảnh
+            if (imageFile != null)
+            {
+                product.ImageUrl = await SaveImage(imageFile, env);
+            }
+            else
+            {
+                product.ImageUrl = existing.ImageUrl;
+            }
+
+            // Đảm bảo Description không null
+            if (string.IsNullOrEmpty(product.Description))
+            {
+                product.Description = existing.Description ?? "Đang cập nhật...";
+            }
+
+            _context.Update(product);
+            await _context.SaveChangesAsync();
+            return RedirectToAction("Products");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteProduct(string id)
+        {
+            var product = _context.Products.Find(id);
+            if (product != null) { _context.Products.Remove(product); _context.SaveChanges(); }
+            return RedirectToAction("Products");
+        }
+
+        // --- 4. QUẢN LÝ NGƯỜI DÙNG (MỚI) ---
+        public IActionResult Users()
+        {
+            var users = _context.Users.OrderByDescending(u => u.CreatedAt).ToList();
+            return View(users);
+        }
+
+        [HttpPost]
+        public IActionResult UpdateUserRole(string userId, string newRole)
+        {
+            var user = _context.Users.Find(userId);
+            if (user != null) { user.Role = newRole; _context.SaveChanges(); }
+            return RedirectToAction("Users");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteUser(string id)
+        {
+            var user = _context.Users.Find(id);
+            if (user != null) { _context.Users.Remove(user); _context.SaveChanges(); }
+            return RedirectToAction("Users");
+        }
+
+        // --- 5. QUẢN LÝ MÃ GIẢM GIÁ (MỚI) ---
+        public IActionResult Coupons()
+        {
+            var coupons = _context.Coupons.OrderByDescending(c => c.ExpiryDate).ToList();
+            return View(coupons);
+        }
+
+        public IActionResult CreateCoupon() => View();
+
+        [HttpPost]
+        public IActionResult CreateCoupon(Coupon coupon)
+        {
+            if (ModelState.IsValid)
+            {
+                _context.Coupons.Add(coupon);
+                _context.SaveChanges();
+                return RedirectToAction("Coupons");
+            }
+            return View(coupon);
+        }
+
+        [HttpPost]
+        public IActionResult DeleteCoupon(string id)
+        {
+            var coupon = _context.Coupons.Find(id);
+            if (coupon != null) { _context.Coupons.Remove(coupon); _context.SaveChanges(); }
+            return RedirectToAction("Coupons");
+        }
+
+        // --- 6. QUẢN LÝ ĐÁNH GIÁ (MỚI) ---
+        public IActionResult Reviews()
+        {
+            var reviews = _context.Reviews.OrderByDescending(r => r.CreatedAt).ToList();
+            return View(reviews);
+        }
+
+        [HttpPost]
+        public IActionResult DeleteReview(string id)
+        {
+            var review = _context.Reviews.Find(id);
+            if (review != null) { _context.Reviews.Remove(review); _context.SaveChanges(); }
+            return RedirectToAction("Reviews");
+        }
+
+        // Hàm hỗ trợ lưu ảnh
+        private async Task<string> SaveImage(IFormFile file, IWebHostEnvironment env)
+        {
+            string folder = Path.Combine(env.WebRootPath, "images", "products");
+            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+            string fileName = Guid.NewGuid().ToString() + "_" + file.FileName;
+            string filePath = Path.Combine(folder, fileName);
+            using (var fs = new FileStream(filePath, FileMode.Create)) { await file.CopyToAsync(fs); }
+            return "/images/products/" + fileName;
+        }
     }
 }
 
@@ -341,7 +612,6 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebBanVLXD.Models;
 using System.Security.Claims;
-using Newtonsoft.Json;
 using System.Linq;
 
 namespace WebBanVLXD.Controllers {
@@ -1974,6 +2244,356 @@ namespace WebBanVLXD.Migrations
 }
 
 ==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\20260719025752_AddUserInfoFields.cs
+==============================================================
+using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace WebBanVLXD.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddUserInfoFields : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<string>(
+                name: "Address",
+                table: "Users",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "DateOfBirth",
+                table: "Users",
+                type: "datetime2",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "FullName",
+                table: "Users",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "Gender",
+                table: "Users",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "PhoneNumber",
+                table: "Users",
+                type: "nvarchar(max)",
+                nullable: true);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "Address",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "DateOfBirth",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "FullName",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "Gender",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "PhoneNumber",
+                table: "Users");
+        }
+    }
+}
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\20260719025752_AddUserInfoFields.Designer.cs
+==============================================================
+// <auto-generated />
+using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using WebBanVLXD.Models;
+
+#nullable disable
+
+namespace WebBanVLXD.Migrations
+{
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260719025752_AddUserInfoFields")]
+    partial class AddUserInfoFields
+    {
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        {
+#pragma warning disable 612, 618
+            modelBuilder
+                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("WebBanVLXD.Models.Coupon", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("ExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Coupons");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Order", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.OrderDetail", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("OrderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("OrderDetails");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Product", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Brand")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("OldPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Specifications")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Review", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Reviews");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.User", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AuthProvider")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FullName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Gender")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResetPasswordToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ResetPasswordTokenExpiry")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ThemePreference")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.OrderDetail", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Order", null)
+                        .WithMany("OrderDetails")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebBanVLXD.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Order", b =>
+                {
+                    b.Navigation("OrderDetails");
+                });
+#pragma warning restore 612, 618
+        }
+    }
+}
+
+==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\AppDbContextModelSnapshot.cs
 ==============================================================
 // <auto-generated />
@@ -2169,18 +2789,33 @@ namespace WebBanVLXD.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("AuthProvider")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("FullName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Gender")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ResetPasswordToken")
@@ -2247,7 +2882,8 @@ namespace WebBanVLXD.Models
         public DbSet<OrderDetail> OrderDetails { get; set; }
         public DbSet<Coupon> Coupons { get; set; }
         public DbSet<Review> Reviews { get; set; }
-
+        public DbSet<ProductImage> ProductImages { get; set; }
+        public DbSet<ProductVariant> ProductVariants { get; set; }
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {
@@ -2337,6 +2973,7 @@ namespace WebBanVLXD.Models {
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Models\Product.cs
 ==============================================================
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -2346,20 +2983,90 @@ namespace WebBanVLXD.Models
     {
         [Key]
         public string Id { get; set; } = Guid.NewGuid().ToString();
-        [Required]
-        public string Name { get; set; } = null!; // VD: Xi măng, Sắt thép
-        public string Description { get; set; } = null!;
+
+        [Required(ErrorMessage = "Tên sản phẩm không được để trống")]
+        [StringLength(255)]
+        public string Name { get; set; } = null!;
+
+        public string Description { get; set; } = string.Empty;
 
         [Column(TypeName = "decimal(18,2)")]
-        public decimal Price { get; set; }
-        public string Unit { get; set; } = "Cái"; // Bao, Tấn, Viên...
-        public int StockQuantity { get; set; }
-        public string? ImageUrl { get; set; }
+        public decimal Price { get; set; } // Giá cơ bản
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal OldPrice { get; set; } // Giá cũ (để hiển thị gạch ngang)
+
+        public string Unit { get; set; } = "Cái"; // Bao, Tấn, Viên, m2...
+
+        public int StockQuantity { get; set; } // Số lượng tồn kho cơ bản
+
+        public string? ImageUrl { get; set; } // Ảnh đại diện chính (Thumbnail)
+
         public string Category { get; set; } = "Chung";
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public decimal OldPrice { get; set; } // Giá cũ để gạch ngang
-        public string Brand { get; set; } = string.Empty;    // Thương hiệu
+
+        public string Brand { get; set; } = string.Empty;
+
         public string Specifications { get; set; } = string.Empty; // Thông số kỹ thuật
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // --- Navigation Properties (Mối quan hệ) ---
+        
+        public List<ProductImage> Images { get; set; } = new();
+        public List<ProductVariant> Variants { get; set; } = new();
+        public List<Review> Reviews { get; set; } = new();
+    }
+
+    public class ProductImage
+    {
+        [Key]
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+
+        [Required]
+        public string ProductId { get; set; } = null!;
+
+        [ForeignKey("ProductId")]
+        public Product? Product { get; set; }
+
+        [Required]
+        public string Url { get; set; } = null!;
+    }
+
+    public class ProductVariant
+    {
+        [Key]
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+
+        [Required]
+        public string ProductId { get; set; } = null!;
+
+        [ForeignKey("ProductId")]
+        public Product? Product { get; set; }
+
+        [Required]
+        public string Name { get; set; } = null!; // VD: "Đỏ - 2m", "Loại 1 - 50kg"
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Price { get; set; } // Giá riêng cho biến thể này
+
+        public int StockQuantity { get; set; }
+    }
+
+    public class Review
+    {
+        [Key]
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+
+        [Required]
+        public string ProductId { get; set; } = null!;
+
+        [ForeignKey("ProductId")]
+        public Product? Product { get; set; }
+
+        public string CustomerName { get; set; } = "Khách hàng";
+        public string Comment { get; set; } = string.Empty;
+        public int Rating { get; set; } // Điểm đánh giá (1-5 sao)
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }
 
@@ -2406,6 +3113,11 @@ namespace WebBanVLXD.Models
 
         public string? ResetPasswordToken { get; set; }
         public DateTime? ResetPasswordTokenExpiry { get; set; }
+        public string? FullName { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public string? Gender { get; set; } // Nam, Nữ, Khác
+        public string? PhoneNumber { get; set; }
+        public string? Address { get; set; }
     }
 }
 
@@ -3001,178 +3713,63 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Pages\Product\Index.cshtml
 @model WebBanVLXD.Pages.Product.IndexModel
 @{
     ViewData["Title"] = "Tất cả sản phẩm";
-    Layout = "~/Views/Shared/_Layout.cshtml"; 
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
 <div class="container my-4">
-    <!-- BREADCRUMB -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb mb-1">
             <li class="breadcrumb-item"><a href="/" class="text-muted text-decoration-none small">Trang chủ</a></li>
             <li class="breadcrumb-item active small" aria-current="page">@Model.Category</li>
         </ol>
         <h3 class="fw-bold mt-2">
-            <span style="color: var(--bs-dark-blue);">Vật Liệu Xây Dựng</span> 
+            <span style="color: var(--bs-dark-blue);">Vật Liệu Xây Dựng</span>
             <span class="text-orange">Chất Lượng Cao</span>
         </h3>
     </nav>
 
     <div class="row g-4">
-        <!-- SIDEBAR BỘ LỌC -->
         <div class="col-lg-3">
-            <div class="filter-sidebar bg-white p-4 rounded-3 shadow-sm border border-light sticky-top" style="top: 100px;">
-                <!-- Danh mục -->
-                <div class="filter-section mb-4">
-                    <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: var(--bs-dark-blue);">
-                        <i class="fa-solid fa-layer-group me-2"></i> Danh mục
-                    </h6>
-                    <ul class="list-unstyled mb-0 category-list-smart">
-                        <li class="d-flex justify-content-between align-items-center mb-2">
-                            <a href="/Product" class="text-decoration-none @(Model.Category == "Tất cả sản phẩm" ? "text-orange fw-bold" : "text-muted")">Tất cả</a>
-                        </li>
-                        <li class="d-flex justify-content-between align-items-center mb-2">
-                            <a href="/Product?category=Sắt+thép" class="text-decoration-none @(Model.Category == "Sắt thép" ? "text-orange fw-bold" : "text-muted")">Sắt thép xây dựng</a>
-                        </li>
-                        <li class="d-flex justify-content-between align-items-center mb-2">
-                            <a href="/Product?category=Xi+măng" class="text-decoration-none @(Model.Category == "Xi măng" ? "text-orange fw-bold" : "text-muted")">Xi măng, Cát, Đá</a>
-                        </li>
-                        <li class="d-flex justify-content-between align-items-center mb-2">
-                            <a href="/Product?category=Gạch+xây" class="text-decoration-none @(Model.Category == "Gạch xây" ? "text-orange fw-bold" : "text-muted")">Gạch xây dựng</a>
-                        </li>
-                        <li class="d-flex justify-content-between align-items-center">
-                            <a href="/Product?category=Sơn" class="text-decoration-none @(Model.Category == "Sơn" ? "text-orange fw-bold" : "text-muted")">Sơn & Chống thấm</a>
-                        </li>
-                    </ul>
-                </div>
-
-                <hr class="text-muted opacity-25">
-
-                <!-- Khoảng giá -->
-                <div class="filter-section mb-4">
-                    <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: var(--bs-dark-blue);">
-                        <i class="fa-solid fa-tag me-2"></i> Khoảng giá
-                    </h6>
-                    <div class="d-flex align-items-center gap-2 mb-3">
-                        <input type="text" class="form-control form-control-sm text-center" placeholder="Từ" style="border-radius: 6px;">
-                        <span class="text-muted">-</span>
-                        <input type="text" class="form-control form-control-sm text-center" placeholder="Đến" style="border-radius: 6px;">
-                    </div>
-                    <button class="btn w-100 fw-bold text-white shadow-sm" style="background-color: var(--bs-dark-blue); border-radius: 6px; font-size: 0.9rem;">
-                        Áp dụng
-                    </button>
-                </div>
-
-                <!-- Banner Khuyến mãi -->
-                <div class="promo-banner mt-4 p-4 text-white text-center rounded-4" style="background-color: var(--bs-dark-blue);">
-                    <p class="small text-uppercase mb-2 text-warning fw-bold">Khuyến mãi cực sốc</p>
-                    <h5 class="fw-bold mb-3">Giảm đến 20% cho<br>gạch ốp lát</h5>
-                    <a href="#" class="btn btn-light btn-sm fw-bold px-3 py-2 rounded-pill text-dark">Xem ngay</a>
-                </div>
+            <div class="filter-sidebar bg-white p-4 rounded-3 shadow-sm border sticky-top" style="top: 100px;">
+                <h6 class="fw-bold mb-3"><i class="fa-solid fa-layer-group me-2"></i> Danh mục</h6>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2"><a href="/Product" class="text-decoration-none @(Model.Category == "Tất cả sản phẩm" ? "text-orange fw-bold" : "text-muted")">Tất cả sản phẩm</a></li>
+                    <li class="mb-2"><a href="/Product?category=Sắt+thép+xây+dựng" class="text-decoration-none @(Model.Category == "Sắt thép xây dựng" ? "text-orange fw-bold" : "text-muted")">Sắt thép xây dựng</a></li>
+                    <li class="mb-2"><a href="/Product?category=Xi+măng" class="text-decoration-none @(Model.Category == "Xi măng" ? "text-orange fw-bold" : "text-muted")">Xi măng, Cát, Đá</a></li>
+                    <li class="mb-2"><a href="/Product?category=Gạch+xây+dựng" class="text-decoration-none @(Model.Category == "Gạch xây dựng" ? "text-orange fw-bold" : "text-muted")">Gạch xây dựng</a></li>
+                    <li class="mb-2"><a href="/Product?category=Sơn+%26+Chống+thấm" class="text-decoration-none @(Model.Category == "Sơn & Chống thấm" ? "text-orange fw-bold" : "text-muted")">Sơn & Chống thấm</a></li>
+                    <li class="mb-2"><a href="/Product?category=Gạch+ốp+lát" class="text-decoration-none @(Model.Category == "Gạch ốp lát" ? "text-orange fw-bold" : "text-muted")">Gạch ốp lát</a></li>
+                </ul>
             </div>
         </div>
 
-        <!-- MAIN CONTENT - DANH SÁCH SẢN PHẨM -->
         <div class="col-lg-9">
-            <!-- Top control bar -->
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom">
-                <p class="text-muted small mb-0">Hiển thị <strong id="current-count">@(Model.Products.Count)</strong> sản phẩm</p>
-                <div class="d-flex align-items-center gap-3">
-                    <div class="d-flex align-items-center">
-                        <span class="text-muted small me-2 text-nowrap">Sắp xếp theo:</span>
-                        <select class="form-select form-select-sm border-0 bg-light fw-medium text-dark" style="border-radius: 8px;" onchange="location = this.value;">
-                            <option value="/Product?category=@Model.Category" selected="@(string.IsNullOrEmpty(Model.SortOrder))">Mới nhất</option>
-                            <option value="/Product?category=@Model.Category&sortOrder=price_asc" selected="@(Model.SortOrder == "price_asc")">Giá tăng dần</option>
-                            <option value="/Product?category=@Model.Category&sortOrder=price_desc" selected="@(Model.SortOrder == "price_desc")">Giá giảm dần</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- PRODUCT GRID (Nơi đổ dữ liệu Infinite Scroll) -->
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4 mb-4" id="product-list-container">
-                @if (Model.Products != null && Model.Products.Any())
-                {
-                    <partial name="_ProductGridPartial" model="Model.Products" />
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4" id="product-list-container">
+                @if (Model.Products != null && Model.Products.Any()) {
+                    @foreach (var item in Model.Products) {
+                        <div class="col">
+                            <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden bg-white">
+                                <div style="height: 180px; background-color: #f8f9fa;">
+                                    <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "https://placehold.co/400x300" : item.ImageUrl)" class="w-100 h-100 object-fit-cover">
+                                </div>
+                                <div class="card-body p-3 d-flex flex-column">
+                                    <small class="text-muted">@item.Category</small>
+                                    <h6 class="fw-bold mt-1">@item.Name</h6>
+                                    <div class="mt-auto">
+                                        <div class="text-orange fw-bold fs-5 mb-2">@item.Price.ToString("N0") đ</div>
+                                        <a href="/Product/Details/@item.Id" class="btn btn-outline-primary btn-sm w-100 rounded-pill">XEM CHI TIẾT</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                } else {
+                    <div class="col-12 text-center py-5"><h5>Không tìm thấy sản phẩm.</h5></div>
                 }
-                else
-                {
-                    <div class="col-12 text-center py-5">
-                        <h5 class="text-muted">Không tìm thấy sản phẩm nào.</h5>
-                    </div>
-                }
-            </div>
-
-            <!-- Loading Spinner (Ẩn mặc định) -->
-            <div id="loading-spinner" class="text-center py-4" style="display: none;">
-                <div class="spinner-border text-orange" role="status">
-                    <span class="visually-hidden">Đang tải...</span>
-                </div>
-                <p class="text-muted small mt-2">Đang tải thêm sản phẩm...</p>
-            </div>
-            
-            <!-- Message End of List -->
-            <div id="no-more-products" class="text-center py-4" style="display: none;">
-                <p class="text-muted fw-bold mb-0"><i class="fa-solid fa-check-circle text-success me-2"></i>Đã hiển thị toàn bộ sản phẩm</p>
             </div>
         </div>
     </div>
 </div>
-
-@section Scripts {
-    <script>
-        let currentPage = 1;
-        let totalPages = parseInt('@Model.TotalPages');
-        let isLoading = false;
-
-        // Nếu ban đầu danh sách chỉ có 1 trang thì hiện thông báo hết ngay
-        if (currentPage >= totalPages) {
-            $('#no-more-products').show();
-        }
-
-        $(window).scroll(function () {
-            // Kiểm tra xem vị trí cuộn đã cách đáy trang khoảng 300px chưa
-            if (Math.ceil($(window).scrollTop() + $(window).height()) >= $(document).height() - 300) {
-                if (!isLoading && currentPage < totalPages) {
-                    loadMoreProducts();
-                }
-            }
-        });
-
-        function loadMoreProducts() {
-            isLoading = true;
-            currentPage++;
-            
-            $('#loading-spinner').show();
-
-            let category = '@Model.Category';
-            let sortOrder = '@Model.SortOrder';
-
-            $.ajax({
-                // Trỏ thẳng đến Handler OnGetLoadMore()
-                url: `/Product?handler=LoadMore&pageNumber=${currentPage}&category=${encodeURIComponent(category)}&sortOrder=${encodeURIComponent(sortOrder)}`,
-                type: 'GET',
-                success: function (data) {
-                    // Append đoạn HTML Partial vừa tải về vào lưới sản phẩm
-                    $('#product-list-container').append(data);
-                    
-                    // Ẩn Loading
-                    $('#loading-spinner').hide();
-                    isLoading = false;
-
-                    // Nếu đã tải hết số trang thì chặn và hiện thông báo
-                    if (currentPage >= totalPages) {
-                         $('#no-more-products').show();
-                    }
-                },
-                error: function () {
-                    console.log("Lỗi tải trang");
-                    $('#loading-spinner').hide();
-                    isLoading = false;
-                }
-            });
-        }
-    </script>
-}
 
 ==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Pages\Product\Index.cshtml.cs
@@ -3265,71 +3862,48 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Pages\Product\_ProductGridParti
 ==============================================================
 @model IEnumerable<WebBanVLXD.Models.Product>
 
-@if (Model != null && Model.Any())
+@if (Model != null)
 {
     foreach (var item in Model)
     {
         <div class="col">
-            <div class="card product-card-smart h-100 border-0 shadow-sm rounded-4">
-                <!-- Badges -->
-                @if (item.OldPrice > item.Price)
-                {
-                    <span class="product-badge badge bg-danger position-absolute top-0 start-0 m-3">-15%</span>
-                }
-                else if (item.StockQuantity < 10)
-                {
-                    <span class="product-badge badge bg-orange position-absolute top-0 start-0 m-3">BÁN CHẠY</span>
-                }
-                else if (item.CreatedAt > DateTime.Now.AddDays(-7))
-                {
-                    <span class="product-badge badge bg-primary position-absolute top-0 start-0 m-3">MỚI</span>
-                }
-
-                <!-- Image -->
-                <div class="bg-light" style="border-radius: 1rem 1rem 0 0; overflow: hidden; height: 180px;">
-                    <img src="@(item.ImageUrl ?? "https://placehold.co/400x300/e9ecef/495057?text=No+Image")" class="w-100 h-100 object-fit-cover" alt="@item.Name">
+            <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden bg-white">
+                <!-- Ảnh -->
+                <div style="height: 180px; background-color: #f1f1f1;">
+                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                    {
+                        <img src="@item.ImageUrl" class="w-100 h-100 object-fit-cover" alt="@item.Name">
+                    }
+                    else
+                    {
+                        <div class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                            <i class="fa-solid fa-image fa-3x"></i>
+                        </div>
+                    }
                 </div>
-                
-                <!-- Content -->
-                <div class="card-body d-flex flex-column p-4 position-relative">
-                    <span class="brand-text text-muted mb-1" style="font-size: 0.75rem;">
-                        @(string.IsNullOrEmpty(item.Brand) ? "Thương hiệu chung" : item.Brand)
-                    </span>
-                    <h6 class="product-title-smart fw-bold text-dark mb-2" style="font-size: 0.95rem; line-height: 1.4;">
+
+                <!-- Thông tin -->
+                <div class="card-body p-3">
+                    <small class="text-muted d-block mb-1">@item.Category</small>
+                    <h6 class="fw-bold text-dark mb-2 text-truncate-2" style="height: 2.8rem; overflow: hidden;">
                         @item.Name
                     </h6>
-                    
-                    <div class="rating-stars mb-3">
-                        <i class="fa-solid fa-star text-warning" style="font-size: 0.75rem;"></i>
-                        <i class="fa-solid fa-star text-warning" style="font-size: 0.75rem;"></i>
-                        <i class="fa-solid fa-star text-warning" style="font-size: 0.75rem;"></i>
-                        <i class="fa-solid fa-star text-warning" style="font-size: 0.75rem;"></i>
-                        <i class="fa-solid fa-star text-warning" style="font-size: 0.75rem;"></i>
-                        <span class="text-muted ms-1" style="font-size: 0.75rem;">(12)</span>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <span class="text-orange fw-bold fs-5">@item.Price.ToString("N0") đ</span>
+                        <small class="text-muted">/@item.Unit</small>
                     </div>
-
-                    <div class="mt-auto">
-                        <div class="price-current text-orange fw-bold fs-6">@item.Price.ToString("N0") đ/@item.Unit</div>
-                        @if (item.OldPrice > 0)
-                        {
-                            <div class="price-old text-muted text-decoration-line-through mt-1" style="font-size: 0.8rem;">
-                                @item.OldPrice.ToString("N0") đ
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="mt-1" style="font-size: 0.8rem; visibility: hidden;">Placeholder</div>
-                        }
-                    </div>
-                    
-                    <!-- Cart Button -->
-                    <button class="btn btn-cart-smart position-absolute shadow-sm" style="bottom: 1.5rem; right: 1.5rem; background-color: var(--bs-dark-blue); width: 35px; height: 35px; border-radius: 8px;">
-                        <i class="fa-solid fa-cart-shopping text-white" style="font-size: 0.85rem;"></i>
-                    </button>
+                    <a href="/Product/Details/@item.Id" class="btn btn-outline-primary btn-sm w-100 mt-3 rounded-pill">
+                        Xem chi tiết
+                    </a>
                 </div>
             </div>
         </div>
     }
+}
+else
+{
+    <!-- Dòng này để bạn debug, nếu thấy nó hiện ra nghĩa là Model bị truyền vào sai -->
+    <p class="text-danger">Lỗi: Dữ liệu sản phẩm bị trống!</p>
 }
 
 ==============================================================
@@ -3528,6 +4102,69 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Account\Login.cshtml
 </div>
 
 ==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Account\Profile.cshtml
+==============================================================
+@model WebBanVLXD.Models.User
+@{
+    ViewData["Title"] = "Hồ sơ cá nhân";
+}
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 rounded-4 p-4">
+                <h4 class="fw-bold mb-4"><i class="fa-solid fa-user-gear me-2 text-primary"></i>Thông tin tài khoản</h4>
+                
+                @if (ViewBag.Message != null)
+                {
+                    <div class="alert alert-success">@ViewBag.Message</div>
+                }
+
+                <form asp-action="UpdateProfile" method="post">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Tên đăng nhập (Không thể sửa)</label>
+                            <input type="text" class="form-control bg-light" value="@Model.UserName" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Email</label>
+                            <input type="text" class="form-control bg-light" value="@Model.Email" readonly>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold">Họ và tên</label>
+                            <input asp-for="FullName" class="form-control" placeholder="Nhập họ tên đầy đủ">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Ngày sinh</label>
+                            <input asp-for="DateOfBirth" type="date" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Giới tính</label>
+                            <select asp-for="Gender" class="form-select">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                                <option value="Khác">Khác</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Số điện thoại</label>
+                            <input asp-for="PhoneNumber" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Địa chỉ</label>
+                            <input asp-for="Address" class="form-control">
+                        </div>
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn btn-primary px-5 py-2 fw-bold shadow-sm">LƯU THAY ĐỔI</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>   
+
+==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Account\Register.cshtml
 ==============================================================
 @{
@@ -3592,6 +4229,193 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Account\Register.cshtml
             </div>
         </div>
     </div>
+</div>
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\Coupons.cshtml
+==============================================================
+@model IEnumerable<WebBanVLXD.Models.Coupon>
+@{ ViewData["Title"] = "Mã giảm giá"; Layout = "_AdminLayout"; }
+
+<div class="card card-admin p-4">
+    <div class="d-flex justify-content-between mb-4">
+        <h5 class="fw-bold">Danh sách mã giảm giá</h5>
+        <a asp-action="CreateCoupon" class="btn btn-orange text-white fw-bold">+ Tạo mã mới</a>
+    </div>
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Mã Code</th><th>Giảm (%)</th><th>Hết hạn</th><th>Trạng thái</th><th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in Model) {
+            <tr>
+                <td class="fw-bold text-primary">@c.Code</td>
+                <td>@c.DiscountPercent%</td>
+                <td>@c.ExpiryDate.ToString("dd/MM/yyyy")</td>
+                <td>@(c.IsActive ? "Đang chạy" : "Tạm dừng")</td>
+                <td>
+                    <form asp-action="DeleteCoupon" method="post" onsubmit="return confirm('Xóa mã này?')">
+                        <input type="hidden" name="id" value="@c.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\CreateCoupon.cshtml
+==============================================================
+@model WebBanVLXD.Models.Coupon
+@{ Layout = "_AdminLayout"; }
+<div class="card card-admin p-4">
+    <h5 class="fw-bold mb-4">Tạo mã giảm giá mới</h5>
+    <form asp-action="CreateCoupon" method="post">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Mã Code (VD: GIAM30)</label>
+                <input asp-for="Code" class="form-control" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Phần trăm giảm (%)</label>
+                <input asp-for="DiscountPercent" type="number" class="form-control" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Ngày hết hạn</label>
+                <input asp-for="ExpiryDate" type="date" class="form-control" required />
+            </div>
+            <div class="col-12 mt-4">
+                <button type="submit" class="btn btn-primary px-4">Lưu mã</button>
+                <a asp-action="Coupons" class="btn btn-light border ms-2">Hủy</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\CreateProduct.cshtml
+==============================================================
+@model WebBanVLXD.Models.Product
+@{
+    Layout = "_AdminLayout";
+    var categories = ViewBag.Categories as List<string> ?? new List<string>();
+}
+<div class="card card-admin p-4 shadow-sm">
+    <h5 class="fw-bold mb-4 text-primary">Thêm sản phẩm mới</h5>
+    <form asp-action="CreateProduct" method="post" enctype="multipart/form-data">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label fw-bold">Tên sản phẩm *</label>
+                <input asp-for="Name" class="form-control" required />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Danh mục</label>
+                <select asp-for="Category" class="form-select">
+                    @foreach (var cat in categories)
+                    {
+                        <option value="@cat">@cat</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Giá bán (đ) *</label>
+                <input asp-for="Price" type="number" class="form-control" required />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Đơn vị</label>
+                <input asp-for="Unit" class="form-control" placeholder="Bao, Cái, Tấn..." />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Ảnh sản phẩm</label>
+                <input type="file" name="imageFile" class="form-control" />
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-bold text-danger">Mô tả sản phẩm (Bắt buộc) *</label>
+                <textarea asp-for="Description" class="form-control" rows="4" required
+                          placeholder="Nhập mô tả chi tiết sản phẩm tại đây..."></textarea>
+            </div>
+            <div class="col-12 mt-4 text-end">
+                <a asp-action="Products" class="btn btn-light border px-4">Quay lại</a>
+                <button type="submit" class="btn btn-primary px-5">Lưu sản phẩm</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\EditProduct.cshtml
+==============================================================
+@model WebBanVLXD.Models.Product
+@{
+    ViewData["Title"] = "Sửa sản phẩm";
+    Layout = "_AdminLayout";
+    var categories = ViewBag.Categories as List<string> ?? new List<string>();
+}
+
+<div class="card card-admin p-4 shadow-sm border-0">
+    <h5 class="fw-bold mb-4 text-success"><i class="fa-solid fa-pen-to-square me-2"></i>Chỉnh sửa sản phẩm</h5>
+
+    <form asp-action="EditProduct" method="post" enctype="multipart/form-data">
+        <input type="hidden" asp-for="Id" />
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label fw-bold small">Tên sản phẩm *</label>
+                <input asp-for="Name" class="form-control" required />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold small">Danh mục</label>
+                <select asp-for="Category" class="form-select" required>
+                    @foreach (var cat in categories)
+                    {
+                        <option value="@cat" selected="@(Model.Category == cat)">@cat</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-4 text-center border-end">
+                <label class="form-label fw-bold small d-block">Ảnh hiện tại</label>
+                <img src="@Model.ImageUrl" class="rounded border mb-2 shadow-sm"
+                     style="width: 150px; height: 150px; object-fit: cover;">
+                <input type="file" name="imageFile" class="form-control form-control-sm" accept="image/*" />
+            </div>
+
+            <div class="col-md-8">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Giá hiện tại (đ) *</label>
+                        <input asp-for="Price" type="number" class="form-control text-orange fw-bold" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Đơn vị</label>
+                        <input asp-for="Unit" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Thương hiệu</label>
+                        <input asp-for="Brand" class="form-control" placeholder="Ví dụ: Hòa Phát, Hà Tiên..." />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small">Giá cũ (đ)</label>
+                        <input asp-for="OldPrice" type="number" class="form-control" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label fw-bold small">Mô tả chi tiết</label>
+                <textarea asp-for="Description" class="form-control" rows="5" required></textarea>
+            </div>
+
+            <div class="col-12 mt-4 text-end">
+                <hr>
+                <a asp-action="Products" class="btn btn-light border px-4">Hủy</a>
+                <button type="submit" class="btn btn-success px-5 fw-bold shadow-sm">CẬP NHẬT</button>
+            </div>
+        </div>
+    </form>
 </div>
 
 ==============================================================
@@ -3744,6 +4568,142 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\Orders.cshtml
 </div>
 
 ==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\Products.cshtml
+==============================================================
+@model IEnumerable<WebBanVLXD.Models.Product>
+@{
+    ViewData["Title"] = "Sản phẩm";
+    Layout = "_AdminLayout";
+}
+<div class="card card-admin p-4">
+    <div class="d-flex justify-content-between mb-4">
+        <h5 class="fw-bold">Danh sách sản phẩm</h5>
+        <a asp-action="CreateProduct" class="btn btn-primary btn-sm">+ Thêm mới</a>
+    </div>
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Ảnh</th><th>Tên</th><th>Giá</th><th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model) {
+            <tr>
+                <td><img src="@item.ImageUrl" width="50" class="rounded"></td>
+                <td><b>@item.Name</b><br><small>@item.Category</small></td>
+                <td>@item.Price.ToString("N0") đ</td>
+                <td>
+                    <div class="d-flex gap-2">
+                        <a asp-action="EditProduct" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info"><i class="fa-solid fa-pen"></i></a>
+                        <form asp-action="DeleteProduct" asp-route-id="@item.Id" method="post" onsubmit="return confirm('Xóa?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\Reviews.cshtml
+==============================================================
+@model IEnumerable<WebBanVLXD.Models.Review>
+@{ ViewData["Title"] = "Quản lý Đánh giá"; Layout = "_AdminLayout"; }
+
+<div class="card card-admin p-4">
+    <h5 class="fw-bold mb-4">Đánh giá từ khách hàng</h5>
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Sản phẩm</th><th>Người dùng</th><th>Sao</th><th>Bình luận</th><th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model) {
+            <tr>
+                <td><small>@r.ProductId</small></td>
+                <td><b>@r.UserName</b></td>
+                <td class="text-warning">
+                    @for(int i=0; i<r.Rating; i++){ <i class="fa-solid fa-star"></i> }
+                </td>
+                <td>@r.Comment</td>
+                <td>
+                    <form asp-action="DeleteReview" method="post" onsubmit="return confirm('Xóa đánh giá này?')">
+                        <input type="hidden" name="id" value="@r.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                    </form>
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\Users.cshtml
+==============================================================
+@model IEnumerable<WebBanVLXD.Models.User>
+@{ ViewData["Title"] = "Quản lý Người dùng"; Layout = "_AdminLayout"; }
+
+<div class="card card-admin p-4 shadow-sm border-0">
+    <h5 class="fw-bold mb-4">Danh sách thành viên</h5>
+    <table class="table table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Tên người dùng</th><th>Email</th><th>Quyền</th><th>Ngày tạo</th><th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in Model) {
+            <tr>
+                <td><b>@user.UserName</b></td>
+                <td>
+                    @{
+                        var email = user.Email;
+                        if (!string.IsNullOrEmpty(email) && email.Contains("@"))
+                        {
+                            var parts = email.Split('@');
+                            var namePart = parts[0];
+                            var domainPart = parts[1];
+                            
+                            // Lấy 2 ký tự đầu và thêm ****
+                            var maskedName = namePart.Length > 2 
+                                ? namePart.Substring(0, 2) + "****" 
+                                : namePart + "****";
+                                
+                            @(maskedName + "@" + domainPart)
+                        }
+                        else
+                        {
+                            @email
+                        }
+                    }
+                </td>
+                <td><span class="badge @(user.Role == "Admin" ? "bg-danger" : "bg-primary")">@user.Role</span></td>
+                <td>@user.CreatedAt.ToString("dd/MM/yyyy")</td>
+                <td>
+                    <form asp-action="UpdateUserRole" method="post" class="d-inline-flex gap-2">
+                        <input type="hidden" name="userId" value="@user.Id" />
+                        <select name="newRole" class="form-select form-select-sm" style="width: 110px;">
+                            <option value="Customer">Customer</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-dark">Lưu</button>
+                    </form>
+                    <form asp-action="DeleteUser" method="post" class="d-inline" onsubmit="return confirm('Xóa người dùng này?')">
+                        <input type="hidden" name="id" value="@user.Id" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger ms-2"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Cart\Index.cshtml
 ==============================================================
 @model List<WebBanVLXD.Models.CartItem>
@@ -3838,7 +4798,7 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Home\Index.cshtml
 
 <!-- HERO SECTION -->
 <div class="hero-section position-relative">
-    <div class="hero-bg" style="background: linear-gradient(to right, rgba(23, 62, 126, 0.95) 45%, rgba(23, 62, 126, 0.6) 100%), url('https://images.unsplash.com/photo-1541888086425-d81bb19240f5?q=80&w=1920&auto=format&fit=crop') center/cover;">
+    <div class="hero-bg" style="background: linear-gradient(to right, rgba(23, 62, 126, 0.95) 45%, rgba(23, 62, 126, 0.6) 100%), url('https://images.pexels.com/photos/159306/construction-site-build-construction-structure-159306.jpeg?auto=compress&cs=tinysrgb&w=1920') center/cover;">
         <div class="container h-100 d-flex align-items-center">
             <div class="row w-100">
                 <div class="col-lg-6 text-white py-5">
@@ -3846,20 +4806,14 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Home\Index.cshtml
                         <i class="fa-solid fa-circle text-orange me-2" style="font-size: 6px;"></i> GI?I PH�P TO�N DI?N
                     </span>
                     <h1 class="display-4 fw-bolder mb-4" style="line-height: 1.2;">
-                        V?t Li?u X�y D?ng<br>
-                        Ch?t Lu?ng Cho<br>
+                        V?t Li?u X�y D?ng<br> Ch?t Lu?ng Cho<br>
                         <span class="text-orange">M?i C�ng Tr�nh</span>
                     </h1>
-                    <p class="fs-6 mb-5" style="max-width: 480px; color: #d0d7e6; line-height: 1.6;">
-                        Cung c?p gi?i ph�p v?t li?u to�n di?n, giao h�ng nhanh ch�ng, gi� c? c?nh tranh. �?i t�c tin c?y c?a hon 1000+ nh� th?u.
-                    </p>
                     <div class="d-flex gap-3">
                         <a href="/Product" class="btn btn-orange fw-bold px-4 py-3 rounded-pill text-white shadow-sm d-inline-flex align-items-center">
                             Xem S?n Ph?m <i class="fa-solid fa-arrow-right ms-2"></i>
                         </a>
-                        <a href="/Quote" class="btn btn-outline-light fw-bold px-4 py-3 rounded-pill" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2);">
-                            Nh?n B�o Gi�
-                        </a>
+                        <a href="/Contact" class="btn btn-outline-light fw-bold px-4 py-3 rounded-pill">Li�n H? Tu V?n</a>
                     </div>
                 </div>
             </div>
@@ -3872,57 +4826,60 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Home\Index.cshtml
     <div class="d-flex justify-content-between align-items-end mb-4 pb-2">
         <div>
             <h3 class="fw-bold text-dark mb-2">Danh M?c N?i B?t</h3>
-            <p class="text-muted mb-0" style="font-size: 0.95rem;">Kh�m ph� c�c d�ng s?n ph?m ch?t lu?ng cao c?a ch�ng t�i</p>
+            <p class="text-muted mb-0">Kh�m ph� c�c d�ng s?n ph?m ch?t lu?ng cao c?a ch�ng t�i</p>
         </div>
-        <a href="/Product" class="text-dark fw-medium text-decoration-none" style="font-size: 0.95rem;">
+        <a href="/Product" class="text-dark fw-medium text-decoration-none">
             Xem t?t c? danh m?c <i class="fa-solid fa-arrow-right ms-1"></i>
         </a>
     </div>
 
-    <!-- S? d?ng Row Cols 5 d? t?o ra 5 c?t b?ng nhau tr�n m�n h�nh l?n nhu trong thi?t k? -->
     <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3">
+        <!-- 1. S?t th�p -->
         <div class="col">
-            <a href="/Product?category=S?t+Th�p" class="card category-img-card text-white border-0 text-decoration-none">
-                <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=400&auto=format&fit=crop" class="card-img h-100 object-fit-cover" alt="S?t Th�p">
-                <div class="card-img-overlay d-flex flex-column justify-content-end align-items-start gradient-overlay">
-                    <i class="fa-solid fa-layer-group mb-2 fs-5 opacity-75"></i>
+            <a href="/Product?category=S?t+th�p+x�y+d?ng" class="card category-img-card text-white border-0 text-decoration-none shadow-sm h-100">
+                <img src="https://cokhitudongchiho.com/wp-content/uploads/2018/02/thep-cuon-1.jpg" class="card-img h-100 object-fit-cover" alt="S?t Th�p">
+                <div class="card-img-overlay d-flex flex-column justify-content-end gradient-overlay p-3">
                     <h6 class="card-title fw-bold m-0">S?t Th�p</h6>
                 </div>
             </a>
         </div>
+
+        <!-- 2. Xi mang, C�t, �� -->
         <div class="col">
-            <a href="/Product?category=Xi+Mang" class="card category-img-card text-white border-0 text-decoration-none">
-                <img src="https://images.unsplash.com/photo-1621252179027-94459d278660?q=80&w=400&auto=format&fit=crop" class="card-img h-100 object-fit-cover" alt="Xi Mang">
-                <div class="card-img-overlay d-flex flex-column justify-content-end align-items-start gradient-overlay">
-                    <i class="fa-solid fa-bag-shopping mb-2 fs-5 opacity-75"></i>
-                    <h6 class="card-title fw-bold m-0">Xi Mang</h6>
+            <a href="/Product?category=Xi+mang" class="card category-img-card text-white border-0 text-decoration-none shadow-sm h-100">
+                <img src="https://images.pexels.com/photos/2219024/pexels-photo-2219024.jpeg?auto=compress&cs=tinysrgb&w=500" class="card-img h-100 object-fit-cover" alt="Xi mang">
+                <div class="card-img-overlay d-flex flex-column justify-content-end gradient-overlay p-3">
+                    <h6 class="card-title fw-bold m-0">Xi mang, C�t, ��</h6>
                 </div>
             </a>
         </div>
+
+        <!-- 3. G?ch x�y -->
         <div class="col">
-            <a href="/Product?category=G?ch+X�y" class="card category-img-card text-white border-0 text-decoration-none">
-                <img src="https://images.unsplash.com/photo-1585145199676-e17f0dd6ecf9?q=80&w=400&auto=format&fit=crop" class="card-img h-100 object-fit-cover" alt="G?ch X�y">
-                <div class="card-img-overlay d-flex flex-column justify-content-end align-items-start gradient-overlay">
-                    <i class="fa-solid fa-cubes mb-2 fs-5 opacity-75"></i>
-                    <h6 class="card-title fw-bold m-0">G?ch X�y</h6>
+            <a href="/Product?category=G?ch+x�y+d?ng" class="card category-img-card text-white border-0 text-decoration-none shadow-sm h-100">
+                <img src="https://gachviglacera.vn/wp-content/uploads/2025/03/gach-xay-dung.jpg" class="card-img h-100 object-fit-cover" alt="G?ch x�y">
+                <div class="card-img-overlay d-flex flex-column justify-content-end gradient-overlay p-3">
+                    <h6 class="card-title fw-bold m-0">G?ch X�y D?ng</h6>
                 </div>
             </a>
         </div>
+
+        <!-- 4. Son & Ch?ng th?m -->
         <div class="col">
-            <a href="/Product?category=V?t+Li?u+Ho�n+Thi?n" class="card category-img-card text-white border-0 text-decoration-none">
-                <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=400&auto=format&fit=crop" class="card-img h-100 object-fit-cover" alt="V?t Li?u Ho�n Thi?n">
-                <div class="card-img-overlay d-flex flex-column justify-content-end align-items-start gradient-overlay">
-                    <i class="fa-solid fa-paint-roller mb-2 fs-5 opacity-75"></i>
-                    <h6 class="card-title fw-bold m-0">V?t Li?u Ho�n Thi?n</h6>
+            <a href="/Product?category=Son+%26+Ch?ng+th?m" class="card category-img-card text-white border-0 text-decoration-none shadow-sm h-100">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT3P7nswH_hOcbl7c8NKYPGEuvxv388p2JLFE_YL6bVcYJLETsIUF6zA1w&s=10" class="card-img h-100 object-fit-cover" alt="Son">
+                <div class="card-img-overlay d-flex flex-column justify-content-end gradient-overlay p-3">
+                    <h6 class="card-title fw-bold m-0">Son & Ch?ng Th?m</h6>
                 </div>
             </a>
         </div>
+
+        <!-- 5. G?ch ?p l�t -->
         <div class="col">
-            <a href="/Product?category=Thi?t+B?+�i?n+Nu?c" class="card category-img-card text-white border-0 text-decoration-none">
-                <img src="https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=400&auto=format&fit=crop" class="card-img h-100 object-fit-cover" alt="Thi?t B? �i?n Nu?c">
-                <div class="card-img-overlay d-flex flex-column justify-content-end align-items-start gradient-overlay">
-                    <i class="fa-solid fa-bolt mb-2 fs-5 opacity-75"></i>
-                    <h6 class="card-title fw-bold m-0">Thi?t B? �i?n Nu?c</h6>
+            <a href="/Product?category=G?ch+?p+l�t" class="card category-img-card text-white border-0 text-decoration-none shadow-sm h-100">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQO0fHBcwWPbVjfU1pPwVaWg0iBn9v4SUmq7f6NWZY8GIspoLtXvEh19I&s=10" class="card-img h-100 object-fit-cover" alt="G?ch ?p">
+                <div class="card-img-overlay d-flex flex-column justify-content-end gradient-overlay p-3">
+                    <h6 class="card-title fw-bold m-0">G?ch ?p L�t</h6>
                 </div>
             </a>
         </div>
@@ -4100,6 +5057,7 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Shared\_AdminLayout.cshtm
 ==============================================================
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -4112,48 +5070,83 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Shared\_AdminLayout.cshtm
             --admin-orange: #f57224;
             --admin-bg: #f4f7f6;
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--admin-bg); }
-        
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--admin-bg);
+        }
+
         /* Sidebar Styles */
-        #wrapper { display: flex; align-items: stretch; }
+        #wrapper {
+            display: flex;
+            align-items: stretch;
+        }
+
         #sidebar {
-            min-width: 250px; max-width: 250px;
+            min-width: 250px;
+            max-width: 250px;
             background: var(--admin-blue);
             color: #fff;
             transition: all 0.3s;
             min-height: 100vh;
         }
-        #sidebar .sidebar-header { padding: 20px; background: rgba(0,0,0,0.1); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        #sidebar ul.components { padding: 20px 0; }
+
+        #sidebar .sidebar-header {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        #sidebar ul.components {
+            padding: 20px 0;
+        }
+
         #sidebar ul li a {
             padding: 12px 20px;
             display: block;
-            color: rgba(255,255,255,0.7);
+            color: rgba(255, 255, 255, 0.7);
             text-decoration: none;
             transition: 0.3s;
             font-size: 0.95rem;
         }
-        #sidebar ul li a:hover, #sidebar ul li a.active {
+
+        #sidebar ul li a:hover,
+        #sidebar ul li a.active {
             color: #fff;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             border-left: 4px solid var(--admin-orange);
         }
-        
+
         /* Content Area */
-        #content { width: 100%; padding: 20px; }
-        .top-nav { background: #fff; padding: 15px 25px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-        
+        #content {
+            width: 100%;
+            padding: 20px;
+        }
+
+        .top-nav {
+            background: #fff;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+        }
+
         /* Card Styles */
-        .card-admin { border: none; border-radius: 12px; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); }
+        .card-admin {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
     </style>
 </head>
+
 <body>
 
     <div id="wrapper">
         <!-- SIDEBAR -->
         <nav id="sidebar">
             <div class="sidebar-header text-center">
-                <h4 class="fw-bold mb-0 text-orange">BUILDSMART</h4>
+                <h4 class="fw-bold mb-0" style="color: var(--admin-orange);">BUILDSMART</h4>
                 <small class="opacity-50">Hệ thống Quản trị</small>
             </div>
 
@@ -4164,27 +5157,27 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Shared\_AdminLayout.cshtm
                     </a>
                 </li>
                 <li>
-                    <a href="/Admin/Products" class="@(Context.Request.Path.ToString().ToLower().StartsWith("/admin/products") ? "active" : "")">
+                    <a href="/Admin/Products" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/product") ? "active" : "")">
                         <i class="fa-solid fa-box-open me-2"></i> Quản lý Sản phẩm
                     </a>
                 </li>
                 <li>
-                    <a href="/Admin/Orders" class="@(Context.Request.Path.ToString().ToLower().StartsWith("/admin/orders") ? "active" : "")">
+                    <a href="/Admin/Orders" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/order") ? "active" : "")">
                         <i class="fa-solid fa-file-invoice-dollar me-2"></i> Quản lý Đơn hàng
                     </a>
                 </li>
                 <li>
-                    <a href="/Admin/Users" class="@(Context.Request.Path.ToString().ToLower().StartsWith("/admin/users") ? "active" : "")">
+                    <a href="/Admin/Users" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/user") ? "active" : "")">
                         <i class="fa-solid fa-users me-2"></i> Quản lý Người dùng
                     </a>
                 </li>
                 <li>
-                    <a href="/Admin/Coupons" class="@(Context.Request.Path.ToString().ToLower().StartsWith("/admin/coupons") ? "active" : "")">
+                    <a href="/Admin/Coupons" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/coupon") ? "active" : "")">
                         <i class="fa-solid fa-ticket me-2"></i> Mã giảm giá
                     </a>
                 </li>
                 <li>
-                    <a href="/Admin/Reviews" class="@(Context.Request.Path.ToString().ToLower().StartsWith("/admin/reviews") ? "active" : "")">
+                    <a href="/Admin/Reviews" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/review") ? "active" : "")">
                         <i class="fa-solid fa-star me-2"></i> Đánh giá
                     </a>
                 </li>
@@ -4208,7 +5201,7 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Shared\_AdminLayout.cshtm
                 <h5 class="fw-bold mb-0">Xin chào, @User.Identity?.Name!</h5>
                 <div class="d-flex align-items-center">
                     <div class="dropdown">
-                        <img src="https://ui-avatars.com/api/?name=@User.Identity?.Name&background=f57224&color=fff" 
+                        <img src="https://ui-avatars.com/api/?name=@User.Identity?.Name&background=f57224&color=fff"
                              class="rounded-circle shadow-sm" width="40" height="40" style="cursor:pointer">
                     </div>
                 </div>
@@ -4223,6 +5216,7 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Shared\_AdminLayout.cshtm
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
+
 </html>
 
 ==============================================================
@@ -4279,18 +5273,6 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Shared\_Layout.cshtml
                         <a class="nav-link fw-medium nav-link-custom @(currentPath.StartsWith("/product") ? "active" : "text-dark")"
                            href="/Product">S?n ph?m</a>
                     </li>
-
-                    @* N�t Qu?n tr? d�nh ri�ng cho Admin *@
-                    @if (User.IsInRole("Admin"))
-                    {
-                        <li class="nav-item">
-                            <a class="nav-link fw-bold text-danger nav-link-custom @(currentPath.StartsWith("/admin") ? "active" : "")"
-                               href="/Admin">
-                                <i class="fa-solid fa-gauge-high me-1"></i> QU?N TR?
-                            </a>
-                        </li>
-                    }
-
                     <li class="nav-item">
                         <a class="nav-link fw-medium nav-link-custom @(currentPath.StartsWith("/projects") ? "active" : "text-dark")"
                            href="/Projects">D? �n</a>
@@ -4334,10 +5316,12 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Shared\_Layout.cshtml
                             <span class="fw-bold small d-none d-md-inline">@User.Identity.Name</span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 rounded-3" aria-labelledby="userMenu">
-                            <li><span class="dropdown-item-text text-muted small">T�i kho?n: <b>@User.Identity.Name</b></span></li>
+                            <li><span class="dropdown-item-text text-muted small">Ch�o, <b>@User.Identity.Name</b></span></li>
                             <li><hr class="dropdown-divider"></li>
                             
-                            @* Th�m l?i t?t v�o trang Admin trong Dropdown *@
+                            @* LINK H? SO M?I *@
+                            <li><a class="dropdown-item" href="/Account/Profile"><i class="fa-solid fa-address-card me-2"></i>Th�ng tin c� nh�n</a></li>
+                            
                             @if (User.IsInRole("Admin"))
                             {
                                 <li><a class="dropdown-item fw-bold text-primary" href="/Admin"><i class="fa-solid fa-chart-line me-2"></i>Dashboard Admin</a></li>
