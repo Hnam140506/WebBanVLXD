@@ -8,6 +8,7 @@
 
     @if (Model.Count > 0) {
         <div class="row">
+            <!-- Cột trái: Danh sách sản phẩm trong giỏ -->
             <div class="col-lg-8">
                 <div class="table-responsive shadow-sm rounded-3">
                     <table class="table align-middle bg-white mb-0">
@@ -33,7 +34,9 @@
                                     <td>@item.Quantity @item.Product.Unit</td>
                                     <td class="fw-bold text-orange">@((item.Product.Price * item.Quantity).ToString("N0")) đ</td>
                                     <td>
-                                        <a asp-action="Remove" asp-route-productId="@item.Product.Id" class="text-danger"><i class="fa-solid fa-trash"></i></a>
+                                        <a asp-action="Remove" asp-route-productId="@item.Product.Id" class="text-danger">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </a>
                                     </td>
                                 </tr>
                             }
@@ -42,32 +45,27 @@
                 </div>
             </div>
 
-            <!-- Form Thanh toán -->
+            <!-- Cột phải: Tóm tắt giỏ hàng (Đã sửa lại để link sang trang Checkout) -->
             <div class="col-lg-4">
-                <div class="card border-0 shadow-sm p-4 rounded-4 bg-light">
-                    <h5 class="fw-bold mb-3">Thông tin nhận hàng</h5>
-                    <form asp-action="Checkout" method="post">
-                        <div class="mb-3">
-                            <label class="small fw-bold">Họ tên</label>
-                            <input type="text" name="customerName" class="form-control" required value="@User.Identity?.Name" />
-                        </div>
-                        <div class="mb-3">
-                            <label class="small fw-bold">Số điện thoại</label>
-                            <input type="tel" name="phone" class="form-control" required />
-                        </div>
-                        <div class="mb-3">
-                            <label class="small fw-bold">Địa chỉ giao hàng</label>
-                            <textarea name="address" class="form-control" rows="2" required></textarea>
-                        </div>
-                        <hr>
-                        <div class="d-flex justify-content-between mb-3">
-                            <span>Tổng tiền:</span>
-                            <h4 class="text-orange fw-bold">@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</h4>
-                        </div>
-                        <button type="submit" class="btn btn-orange w-100 fw-bold text-white py-3 rounded-3 shadow-sm">
-                            ĐẶT HÀNG NGAY
-                        </button>
-                    </form>
+                <div class="card border-0 shadow-sm p-4 rounded-4 bg-light sticky-top" style="top: 100px;">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-receipt me-2"></i>Tóm tắt giỏ hàng</h5>
+                    
+                    <div class="d-flex justify-content-between mb-3 text-muted">
+                        <span>Tạm tính:</span>
+                        <span>@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</span>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between mb-4">
+                        <span class="fw-bold fs-5">Tổng tiền:</span>
+                        <h4 class="text-orange fw-bold">@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</h4>
+                    </div>
+                    
+                    <!-- Nút này dùng thẻ <a> để gọi lệnh GET sang trang Checkout -->
+                    <a href="/Cart/Checkout" class="btn btn-orange w-100 fw-bold text-white py-3 rounded-pill shadow-sm fs-5 text-decoration-none text-center">
+                        TIẾN HÀNH THANH TOÁN
+                    </a>
                 </div>
             </div>
         </div>
@@ -75,7 +73,7 @@
         <div class="text-center py-5">
             <i class="fa-solid fa-cart-shopping fs-1 text-muted mb-3"></i>
             <h5>Giỏ hàng đang trống</h5>
-            <a href="/Product" class="btn btn-primary mt-3">Tiếp tục mua hàng</a>
+            <a href="/Product" class="btn btn-primary mt-3 rounded-pill px-4">Tiếp tục mua hàng</a>
         </div>
     }
 </div>

@@ -1,0 +1,98 @@
+@model List<WebBanVLXD.Models.Order>
+@{
+    ViewData["Title"] = "Tra cứu & Quản lý đơn hàng";
+}
+
+<div class="container my-5" style="min-height: 60vh;">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <h3 class="fw-bold mb-4 text-center" style="color: var(--bs-dark-blue);">Tra cứu tình trạng đơn hàng</h3>
+
+            <!-- Form nhập mã -->
+            <div class="card shadow-sm border-0 p-4 mb-4 rounded-4 bg-light">
+                <form asp-controller="Order" asp-action="Track" method="get">
+                    <div class="input-group input-group-lg">
+                        <input type="text" name="id" class="form-control" placeholder="Nhập mã đơn hàng của bạn (VD: ORD...)" value="@Context.Request.Query["id"]" />
+                        <button type="submit" class="btn btn-orange text-white fw-bold px-4">TRA CỨU</button>
+                    </div>
+                </form>
+                @if (ViewBag.Error != null)
+                {
+                    <div class="alert alert-danger mt-3 mb-0"><i class="fa-solid fa-triangle-exclamation me-2"></i>@ViewBag.Error</div>
+                }
+            </div>
+
+            <!-- Hiển thị danh sách đơn hàng -->
+            @if (Model != null && Model.Any())
+            {
+                <div class="card shadow-sm border-0 p-4 rounded-4">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-list-check me-2"></i>Danh sách đơn đặt hàng</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã đơn</th>
+                                    <th>Người nhận</th>
+                                    <th>Điện thoại</th>
+                                    <th>Tổng tiền</th>
+                                    <th>Thanh toán</th>
+                                    <th>Trạng thái</th>
+                                    <th class="text-center">Chi tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var order in Model)
+                                {
+                                    <tr>
+                                        <td class="fw-bold text-primary">#@order.Id.Substring(0, 8).ToUpper()</td>
+                                        <td>@order.CustomerName</td>
+                                        <td>@order.Phone</td>
+                                        <td class="fw-bold text-orange">@order.TotalAmount.ToString("N0") đ</td>
+                                        <td>
+                                            @if(order.PaymentMethod == "COD") {
+                                                <span class="badge bg-secondary">Tiền mặt</span>
+                                            } else {
+                                                <span class="badge bg-primary">Chuyển khoản</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning text-dark">@(order.Status ?? "Chờ xác nhận")</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-outline-dark rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#details-@order.Id">
+                                                Xem
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    
+                                    <!-- Dòng ẩn chứa chi tiết sản phẩm (Accordion) -->
+                                    <tr class="collapse" id="details-@order.Id">
+                                        <td colspan="7" class="p-0 border-0">
+                                            <div class="bg-light p-3 m-2 rounded-3 border">
+                                                <h6 class="fw-bold text-muted mb-2">Chi tiết sản phẩm:</h6>
+                                                <ul class="list-unstyled mb-1">
+                                                    @if(order.OrderDetails != null) {
+                                                        foreach(var item in order.OrderDetails) {
+                                                            <li class="mb-1">
+                                                                <i class="fa-solid fa-caret-right me-2 text-secondary"></i>
+                                                                <strong>@(item.Product?.Name ?? "Sản phẩm đã bị xóa")</strong> 
+                                                                (Số lượng: @item.Quantity) - <span class="text-danger fw-bold">@((item.Price * item.Quantity).ToString("N0")) đ</span>
+                                                            </li>
+                                                        }
+                                                    }
+                                                </ul>
+                                                <div class="mt-2 text-muted small">
+                                                    <i class="fa-solid fa-location-dot me-1"></i> <strong>Giao đến:</strong> @order.Address
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

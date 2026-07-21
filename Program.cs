@@ -2,29 +2,36 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using WebBanVLXD.Models;
+using Net.payOS; // Bắt buộc phải là Net.payOS
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Thêm dịch vụ Controller, Views và Razor Pages
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
-// 1. Cấu hình SQL Server
+// ================= SQL Server =================
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString)
-);
+    options.UseSqlServer(connectionString));
 
-// 2. CẤU HÌNH SESSION (BẮT BUỘC CHO GIỎ HÀNG)
+// ================= Session =================
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Giỏ hàng tồn tại trong 30 phút chờ
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
 
-// 3. Cấu hình Cookie Authentication & OAuth (Google/Facebook)
+// ================= PayOS =================
+var payOS = new Net.payOS.PayOS(
+    builder.Configuration["PayOS:ClientId"] ?? "",
+    builder.Configuration["PayOS:ApiKey"] ?? "",
+    builder.Configuration["PayOS:ChecksumKey"] ?? ""
+);
+builder.Services.AddSingleton(payOS);
+
+// ================= Authentication =================
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -47,6 +54,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AppSecret = "2b0980baa91e5cfe3c5d474f8a9ee3b2";
     });
 
+// ================= Forward Headers =================
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
@@ -58,7 +66,7 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-// Cấu hình Pipeline xử lý yêu cầu HTTP
+// ================= Middleware =================
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -70,8 +78,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// BẬT SESSION TRƯỚC AUTHENTICATION
-app.UseSession(); 
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();

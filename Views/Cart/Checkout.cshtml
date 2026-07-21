@@ -1,0 +1,89 @@
+@model List<WebBanVLXD.Models.CartItem>
+@{ ViewData["Title"] = "Thanh toán"; }
+
+<div class="container my-5">
+    <form action="/Cart/ProcessCheckout" method="post">
+        <div class="row g-4">
+            <!-- Cột trái: Thông tin nhận hàng & Thanh toán -->
+            <div class="col-lg-7">
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4">
+                    <h5 class="fw-bold mb-4 text-primary"><i class="fa-solid fa-location-dot me-2"></i>Thông tin nhận hàng</h5>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Họ và tên người nhận</label>
+                        <input type="text" name="customerName" class="form-control" value="@User.Identity?.Name" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Số điện thoại</label>
+                        <input type="tel" name="phone" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Địa chỉ giao hàng chi tiết</label>
+                        <textarea name="address" class="form-control" rows="3" placeholder="Số nhà, đường, phường/xã, quận/huyện..." required></textarea>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 rounded-4 p-4">
+                    <h5 class="fw-bold mb-4 text-primary"><i class="fa-solid fa-credit-card me-2"></i>Phương thức thanh toán</h5>
+                    <div class="form-check mb-3 border p-3 rounded bg-light">
+                        <input class="form-check-input fs-5" type="radio" name="paymentMethod" id="cod" value="COD" checked>
+                        <label class="form-check-label fw-bold ms-2" for="cod">
+                            Thanh toán khi nhận hàng (COD)
+                            <span class="d-block text-muted small fw-normal mt-1">Khách hàng thanh toán bằng tiền mặt khi shipper giao hàng tới.</span>
+                        </label>
+                    </div>
+                    <div class="form-check border p-3 rounded">
+                        <input class="form-check-input fs-5" type="radio" name="paymentMethod" id="bank" value="BankTransfer">
+                        <label class="form-check-label fw-bold ms-2" for="bank">
+                            Chuyển khoản ngân hàng
+                            <span class="d-block text-muted small fw-normal mt-1">Vietcombank - 0123456789 - BUILDSMART. Vui lòng ghi chú mã đơn hàng.</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cột phải: Tóm tắt đơn hàng & Mã giảm giá -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm border-0 rounded-4 p-4 sticky-top" style="top: 100px;">
+                    <h5 class="fw-bold mb-4">Tóm tắt đơn hàng</h5>
+                    
+                    @foreach (var item in Model) {
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-secondary me-2">x@item.Quantity</span>
+                                <span class="text-truncate" style="max-width: 150px;">@item.Product.Name</span>
+                            </div>
+                            <span class="fw-bold">@((item.Product.Price * item.Quantity).ToString("N0")) đ</span>
+                        </div>
+                    }
+                    
+                    <hr class="my-4">
+                    
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold">Mã giảm giá (Coupon)</label>
+                        <div class="input-group">
+                            <input type="text" name="couponCode" class="form-control text-uppercase" placeholder="Nhập mã...">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-2 text-muted">
+                        <span>Tạm tính:</span>
+                        <span>@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3 text-muted">
+                        <span>Phí vận chuyển:</span>
+                        <span>Miễn phí</span>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <span class="fw-bold fs-5">Tổng tiền:</span>
+                        <span class="fw-bold fs-3 text-orange">@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-orange w-100 py-3 rounded-pill fw-bold text-white shadow-sm fs-5">ĐẶT HÀNG NGAY</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>

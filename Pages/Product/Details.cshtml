@@ -8,9 +8,19 @@
         <div class="col-lg-6">
             <div id="slider" class="carousel slide shadow rounded-4 overflow-hidden" data-bs-ride="carousel">
                 <div class="carousel-inner">
-                    @for (int i = 0; i < Model.Product.Images.Count; i++) {
-                        <div class="carousel-item @(i == 0 ? "active" : "")">
-                            <img src="@Model.Product.Images[i].Url" class="d-block w-100" style="height: 450px; object-fit: cover;">
+                    @if (Model.Product.Images != null && Model.Product.Images.Any())
+                    {
+                        @for (int i = 0; i < Model.Product.Images.Count; i++) {
+                            <div class="carousel-item @(i == 0 ? "active" : "")">
+                                <img src="@Model.Product.Images[i].Url" class="d-block w-100" style="height: 450px; object-fit: cover;">
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="carousel-item active">
+                            <!-- Hiển thị ảnh đại diện mặc định nếu không có nhiều ảnh -->
+                            <img src="@Model.Product.ImageUrl" class="d-block w-100" style="height: 450px; object-fit: cover;">
                         </div>
                     }
                 </div>
@@ -26,26 +36,70 @@
             <!-- Đánh giá thực tế từ Database -->
             <div class="text-warning mb-3">
                 @for(int i=1; i<=5; i++){ <i class="fa-@(i <= Model.Product.AverageRating ? "solid" : "regular") fa-star"></i> }
-                <span class="text-muted small ms-2">(@Model.Product.Reviews.Count đánh giá thật)</span>
+                <span class="text-muted small ms-2">(@Model.Product.Reviews.Count đánh giá)</span>
             </div>
 
-            <h3 class="text-orange fw-bold" id="price">Chọn phiên bản</h3>
+            <h3 class="text-orange fw-bold" id="price">
+                @(Model.Product.Variants.Any() ? "Chọn phiên bản" : Model.Product.Price.ToString("N0") + " đ")
+            </h3>
 
-            <div class="mt-4">
-                <label class="fw-bold mb-2">Chọn loại:</label>
-                <div class="d-flex gap-2">
-                    @foreach (var v in Model.Product.Variants) {
-                        <input type="radio" class="btn-check" name="v" id="@v.Id" data-price="@v.Price" data-stock="@v.StockQuantity" onchange="updateSelection(this)">
-                        <label class="btn btn-outline-primary" for="@v.Id">@v.Name</label>
+            <!-- FORM ĐỂ TRUYỀN DỮ LIỆU SANG CART CONTROLLER -->
+            <form action="/Cart/AddToCart" method="post">
+                <input type="hidden" name="productId" value="@Model.Product.Id" />
+
+                @if (Model.Product.Variants.Any())
+                {
+                    <div class="mt-4">
+                        <label class="fw-bold mb-2">Chọn loại:</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            @foreach (var v in Model.Product.Variants) {
+                                <input type="radio" class="btn-check" name="variantId" id="@v.Id" value="@v.Id" data-price="@v.Price" data-stock="@v.StockQuantity" onchange="updateSelection(this)" required>
+                                <label class="btn btn-outline-primary" for="@v.Id">@v.Name</label>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <div class="mt-4">
+                    @if (Model.Product.Variants.Any())
+                    {
+                        <!-- Nếu có biến thể, text này sẽ do JS cập nhật -->
+                        <p id="stock" class="fw-bold"></p>
                     }
-                </div>
-            </div>
+                    else
+                    {
+                        <!-- Nếu không có biến thể, lấy trực tiếp tồn kho của sản phẩm -->
+                        <p id="stock" class="fw-bold @(Model.Product.StockQuantity > 0 ? "text-success" : "text-danger")">
+                            @(Model.Product.StockQuantity > 0 ? $"Còn hàng: {Model.Product.StockQuantity}" : "Hết hàng")
+                        </p>
+                    }
 
-            <div class="mt-4">
-                <p id="stock" class="fw-bold"></p>
-                <div class="d-flex gap-3 align-items-center">
-                    <input type="number" value="1" min="1" class="form-control" style="width: 80px;">
-                    <button id="buy" class="btn btn-orange btn-lg text-white px-5" disabled>MUA NGAY</button>
+                    <div class="d-flex gap-3 align-items-center">
+                        <input type="number" name="quantity" id="quantityInput" value="1" min="1" max="@(Model.Product.Variants.Any() ? "" : Model.Product.StockQuantity.ToString())" class="form-control text-center fw-bold" style="width: 80px;" required>
+                        
+                        <!-- Nút Submit Form -->
+                        <button type="submit" id="buy" class="btn btn-orange btn-lg text-white px-5 fw-bold shadow-sm" @(Model.Product.Variants.Any() || Model.Product.StockQuantity <= 0 ? "disabled" : "")>MUA NGAY</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CHI TIẾT SẢN PHẨM Ở DƯỚI -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <ul class="nav nav-tabs custom-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#desc">Mô tả sản phẩm</button>
+                </li>
+            </ul>
+            <div class="tab-content p-4 bg-white shadow-sm rounded-bottom" id="myTabContent">
+                <div class="tab-pane fade show active" id="desc">
+                    @if(!string.IsNullOrEmpty(Model.Product.Description)) {
+                        @Html.Raw(Model.Product.Description.Replace("\n", "<br>"))
+                    } else {
+                        <p class="text-muted">Đang cập nhật nội dung mô tả...</p>
+                    }
                 </div>
             </div>
         </div>
@@ -54,17 +108,27 @@
 
 <script>
     function updateSelection(radio) {
+        // Cập nhật giá hiển thị
         document.getElementById('price').innerText = parseFloat(radio.dataset.price).toLocaleString() + " đ";
+        
+        // Lấy thông tin tồn kho từ thuộc tính data-stock
         const stock = parseInt(radio.dataset.stock);
         const stockEl = document.getElementById('stock');
         const buyBtn = document.getElementById('buy');
+        const qtyInput = document.getElementById('quantityInput');
 
         if (stock > 0) {
             stockEl.innerHTML = `<span class="text-success">Còn hàng: ${stock}</span>`;
             buyBtn.disabled = false;
+            qtyInput.max = stock; // Không cho phép chọn lớn hơn số lượng tồn kho
+            
+            if (parseInt(qtyInput.value) > stock) {
+                qtyInput.value = stock;
+            }
         } else {
             stockEl.innerHTML = `<span class="text-danger">Hết hàng</span>`;
             buyBtn.disabled = true;
+            qtyInput.max = 1;
         }
     }
 </script>
