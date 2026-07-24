@@ -398,22 +398,21 @@ namespace WebBanVLXD.Controllers
     public class AdminController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IWebHostEnvironment _env;
 
-        public AdminController(AppDbContext context)
+        public AdminController(AppDbContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
         private List<string> CategoryList = new List<string> {
-         "Sắt thép",
-         "Xi măng, Cát, Đá",
-         "Gạch xây dựng",
-         "Sơn & Chống thấm",
-         "Gạch ốp lát",
-         "Vật liệu khác"
+            "Sắt thép xây dựng", "Xi măng, Cát, Đá", "Gạch xây dựng", "Sơn & Chống thấm", "Gạch ốp lát", "Thiết bị điện nước", "Vật liệu khác"
         };
 
-        // --- 1. DASHBOARD ---
+        // ==========================================
+        // 1. DASHBOARD
+        // ==========================================
         public IActionResult Index()
         {
             var orders = _context.Orders.ToList();
@@ -434,7 +433,9 @@ namespace WebBanVLXD.Controllers
             return View();
         }
 
-        // --- 2. QUẢN LÝ ĐƠN HÀNG ---
+        // ==========================================
+        // 2. QUẢN LÝ ĐƠN HÀNG
+        // ==========================================
         public IActionResult Orders()
         {
             var orders = _context.Orders.OrderByDescending(o => o.OrderDate).ToList();
@@ -453,10 +454,13 @@ namespace WebBanVLXD.Controllers
             return RedirectToAction("Orders");
         }
 
-        // --- 3. QUẢN LÝ SẢN PHẨM ---
+        // ==========================================
+        // 3. QUẢN LÝ SẢN PHẨM (Nâng cấp Nhiều ảnh & Phiên bản)
+        // ==========================================
         public IActionResult Products()
         {
-            var products = _context.Products.OrderByDescending(p => p.CreatedAt).ToList();
+            // Load sản phẩm kèm theo các phiên bản để hiển thị tổng tồn kho
+            var products = _context.Products.Include(p => p.Variants).OrderByDescending(p => p.CreatedAt).ToList();
             return View(products);
         }
 
@@ -467,10 +471,39 @@ namespace WebBanVLXD.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateProduct(Product product, IFormFile? imageFile, [FromServices] IWebHostEnvironment env)
+        public async Task<IActionResult> CreateProduct(Product product, List<IFormFile> moreImages, 
+            string[] vNames, decimal[] vPrices, int[] vStocks)
         {
+            // 1. Xử lý lưu nhiều ảnh
+            if (moreImages != null && moreImages.Count > 0)
+            {
+                foreach (var file in moreImages)
+                {
+                    string url = await SaveImage(file);
+                    product.Images.Add(new ProductImage { Url = url });
+                }
+                product.ImageUrl = product.Images[0].Url; // Lấy ảnh đầu làm ảnh đại diện
+            }
+
+            // 2. Xử lý lưu các phiên bản (Variants)
+            if (vNames != null && vNames.Length > 0)
+            {
+                for (int i = 0; i < vNames.Length; i++)
+                {
+                    product.Variants.Add(new ProductVariant {
+                        Name = vNames[i],
+                        Price = vPrices[i],
+                        StockQuantity = vStocks[i]
+                    });
+                }
+                // Đồng bộ giá và tồn kho chính để hiển thị ở trang danh sách
+                product.Price = vPrices[0];
+                product.StockQuantity = vStocks.Sum();
+            }
+
             if (string.IsNullOrEmpty(product.Description)) product.Description = "Đang cập nhật nội dung...";
-            if (imageFile != null) product.ImageUrl = await SaveImage(imageFile, env);
+            if (string.IsNullOrEmpty(product.Brand)) product.Brand = "Chính hãng";
+
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
             return RedirectToAction("Products");
@@ -478,38 +511,29 @@ namespace WebBanVLXD.Controllers
 
         public IActionResult EditProduct(string id)
         {
-            var product = _context.Products.Find(id);
+            var product = _context.Products
+                .Include(p => p.Images)
+                .Include(p => p.Variants)
+                .FirstOrDefault(p => p.Id == id);
+                
             if (product == null) return NotFound();
             ViewBag.Categories = CategoryList;
             return View(product);
         }
 
         [HttpPost]
-        public async Task<IActionResult> EditProduct(Product product, IFormFile? imageFile, [FromServices] IWebHostEnvironment env)
+        public async Task<IActionResult> EditProduct(Product product, List<IFormFile> moreImages)
         {
             var existing = _context.Products.AsNoTracking().FirstOrDefault(p => p.Id == product.Id);
             if (existing == null) return NotFound();
 
-            // XỬ LÝ LỖI NULL BRAND TẠI ĐÂY
-            if (string.IsNullOrEmpty(product.Brand))
+            if (moreImages != null && moreImages.Count > 0)
             {
-                product.Brand = existing.Brand ?? "Đang cập nhật";
-            }
-
-            // Xử lý ảnh
-            if (imageFile != null)
-            {
-                product.ImageUrl = await SaveImage(imageFile, env);
-            }
-            else
-            {
-                product.ImageUrl = existing.ImageUrl;
-            }
-
-            // Đảm bảo Description không null
-            if (string.IsNullOrEmpty(product.Description))
-            {
-                product.Description = existing.Description ?? "Đang cập nhật...";
+                foreach (var file in moreImages)
+                {
+                    string url = await SaveImage(file);
+                    _context.ProductImages.Add(new ProductImage { ProductId = product.Id, Url = url });
+                }
             }
 
             _context.Update(product);
@@ -521,15 +545,20 @@ namespace WebBanVLXD.Controllers
         public IActionResult DeleteProduct(string id)
         {
             var product = _context.Products.Find(id);
-            if (product != null) { _context.Products.Remove(product); _context.SaveChanges(); }
+            if (product != null)
+            {
+                _context.Products.Remove(product);
+                _context.SaveChanges();
+            }
             return RedirectToAction("Products");
         }
 
-        // --- 4. QUẢN LÝ NGƯỜI DÙNG (MỚI) ---
+        // ==========================================
+        // 4. QUẢN LÝ NGƯỜI DÙNG
+        // ==========================================
         public IActionResult Users()
         {
-            var users = _context.Users.OrderByDescending(u => u.CreatedAt).ToList();
-            return View(users);
+            return View(_context.Users.OrderByDescending(u => u.CreatedAt).ToList());
         }
 
         [HttpPost]
@@ -548,11 +577,12 @@ namespace WebBanVLXD.Controllers
             return RedirectToAction("Users");
         }
 
-        // --- 5. QUẢN LÝ MÃ GIẢM GIÁ (MỚI) ---
+        // ==========================================
+        // 5. QUẢN LÝ MÃ GIẢM GIÁ
+        // ==========================================
         public IActionResult Coupons()
         {
-            var coupons = _context.Coupons.OrderByDescending(c => c.ExpiryDate).ToList();
-            return View(coupons);
+            return View(_context.Coupons.OrderByDescending(c => c.ExpiryDate).ToList());
         }
 
         public IActionResult CreateCoupon() => View();
@@ -560,13 +590,9 @@ namespace WebBanVLXD.Controllers
         [HttpPost]
         public IActionResult CreateCoupon(Coupon coupon)
         {
-            if (ModelState.IsValid)
-            {
-                _context.Coupons.Add(coupon);
-                _context.SaveChanges();
-                return RedirectToAction("Coupons");
-            }
-            return View(coupon);
+            _context.Coupons.Add(coupon);
+            _context.SaveChanges();
+            return RedirectToAction("Coupons");
         }
 
         [HttpPost]
@@ -577,11 +603,12 @@ namespace WebBanVLXD.Controllers
             return RedirectToAction("Coupons");
         }
 
-        // --- 6. QUẢN LÝ ĐÁNH GIÁ (MỚI) ---
+        // ==========================================
+        // 6. QUẢN LÝ ĐÁNH GIÁ (Reviews)
+        // ==========================================
         public IActionResult Reviews()
         {
-            var reviews = _context.Reviews.OrderByDescending(r => r.CreatedAt).ToList();
-            return View(reviews);
+            return View(_context.Reviews.OrderByDescending(r => r.CreatedAt).ToList());
         }
 
         [HttpPost]
@@ -592,14 +619,21 @@ namespace WebBanVLXD.Controllers
             return RedirectToAction("Reviews");
         }
 
-        // Hàm hỗ trợ lưu ảnh
-        private async Task<string> SaveImage(IFormFile file, IWebHostEnvironment env)
+        // ==========================================
+        // HÀM HỖ TRỢ (HELPER)
+        // ==========================================
+        private async Task<string> SaveImage(IFormFile file)
         {
-            string folder = Path.Combine(env.WebRootPath, "images", "products");
+            string folder = Path.Combine(_env.WebRootPath, "images", "products");
             if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+            
             string fileName = Guid.NewGuid().ToString() + "_" + file.FileName;
             string filePath = Path.Combine(folder, fileName);
-            using (var fs = new FileStream(filePath, FileMode.Create)) { await file.CopyToAsync(fs); }
+            
+            using (var fs = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(fs);
+            }
             return "/images/products/" + fileName;
         }
     }
@@ -613,27 +647,43 @@ using Newtonsoft.Json;
 using WebBanVLXD.Models;
 using System.Security.Claims;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System;
+using Net.payOS;        // Dùng đúng thư viện gốc
+using Net.payOS.Types;  // Dùng đúng thư viện gốc
 
-namespace WebBanVLXD.Controllers {
-    public class CartController : Controller {
+namespace WebBanVLXD.Controllers
+{
+    public class CartController : Controller
+    {
         private readonly AppDbContext _context;
-        public CartController(AppDbContext context) => _context = context;
+        private readonly Net.payOS.PayOS _payOS; // Tường minh kiểu dữ liệu
 
-        // Lấy giỏ hàng từ Session
-        private List<CartItem> GetCartItems() {
+        public CartController(AppDbContext context, Net.payOS.PayOS payOS)
+        {
+            _context = context;
+            _payOS = payOS;
+        }
+
+        // ==========================================
+        // CÁC HÀM XỬ LÝ GIỎ HÀNG
+        // ==========================================
+        private List<CartItem> GetCartItems()
+        {
             var sessionCart = HttpContext.Session.GetString("Cart");
             if (sessionCart != null) return JsonConvert.DeserializeObject<List<CartItem>>(sessionCart)!;
             return new List<CartItem>();
         }
 
-        // Lưu giỏ hàng vào Session
-        private void SaveCartItems(List<CartItem> cart) => 
+        private void SaveCartItems(List<CartItem> cart) =>
             HttpContext.Session.SetString("Cart", JsonConvert.SerializeObject(cart));
 
         public IActionResult Index() => View(GetCartItems());
 
         [HttpPost]
-        public IActionResult AddToCart(string productId, int quantity = 1) {
+        public IActionResult AddToCart(string productId, int quantity = 1)
+        {
             var product = _context.Products.Find(productId);
             if (product == null) return NotFound();
 
@@ -647,25 +697,69 @@ namespace WebBanVLXD.Controllers {
             return RedirectToAction("Index");
         }
 
-        public IActionResult Remove(string productId) {
+        public IActionResult Remove(string productId)
+        {
             var cart = GetCartItems();
             cart.RemoveAll(i => i.Product.Id == productId);
             SaveCartItems(cart);
             return RedirectToAction("Index");
         }
 
+        // ==========================================
+        // MÀN HÌNH ĐIỀN THÔNG TIN THANH TOÁN
+        // ==========================================
+        [HttpGet]
+        public IActionResult Checkout()
+        {
+            var cart = GetCartItems();
+            if (cart.Count == 0) return RedirectToAction("Index");
+            return View(cart);
+        }
+
+        // ==========================================
+        // XỬ LÝ ĐẶT HÀNG & GỌI PAYOS
+        // ==========================================
         [HttpPost]
-        public async Task<IActionResult> Checkout(string customerName, string phone, string address) {
+        public async Task<IActionResult> ProcessCheckout(string customerName, string phone, string address, string paymentMethod, string couponCode)
+        {
             var cart = GetCartItems();
             if (cart.Count == 0) return RedirectToAction("Index");
 
-            var order = new Order {
+            decimal totalAmount = cart.Sum(i => i.Product.Price * i.Quantity);
+            decimal discountAmount = 0;
+
+            if (!string.IsNullOrEmpty(couponCode))
+            {
+                var coupon = _context.Coupons.FirstOrDefault(c =>
+                    c.Code == couponCode &&
+                    c.IsActive &&
+                    c.ExpiryDate >= DateTime.Now);
+
+                if (coupon != null)
+                {
+                    discountAmount = coupon.DiscountAmount;
+
+                    // Không cho giảm lớn hơn tổng tiền đơn hàng
+                    if (discountAmount > totalAmount)
+                    {
+                        discountAmount = totalAmount;
+                    }
+                }
+            }
+
+            var order = new Order
+            {
                 UserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
                 CustomerName = customerName,
                 Phone = phone,
                 Address = address,
-                TotalAmount = cart.Sum(i => i.Product.Price * i.Quantity),
-                OrderDetails = cart.Select(i => new OrderDetail {
+                TotalAmount = totalAmount - discountAmount,
+                PaymentMethod = paymentMethod,
+                CouponCode = couponCode,
+                DiscountAmount = discountAmount,
+                Status = paymentMethod == "BankTransfer" ? "Chờ thanh toán" : "Chờ xử lý",
+                OrderDetails = cart.Select(i => new OrderDetail
+                {
                     ProductId = i.Product.Id,
                     Quantity = i.Quantity,
                     Price = i.Product.Price
@@ -673,10 +767,67 @@ namespace WebBanVLXD.Controllers {
             };
 
             _context.Orders.Add(order);
+
+            // Trừ số lượng tồn kho
+            foreach (var item in cart)
+            {
+                var product = _context.Products.Find(item.Product.Id);
+                if (product != null)
+                {
+                    product.StockQuantity -= item.Quantity;
+                }
+            }
+
             await _context.SaveChangesAsync();
-            
-            HttpContext.Session.Remove("Cart"); // Xóa giỏ sau khi đặt
+            HttpContext.Session.Remove("Cart");
+
+            // XỬ LÝ PAYOS NẾU CHỌN CHUYỂN KHOẢN NGÂN HÀNG
+            if (paymentMethod == "BankTransfer")
+            {
+                var domain = $"{Request.Scheme}://{Request.Host}";
+                long orderCode = long.Parse(DateTimeOffset.Now.ToString("yyMMddHHmmss"));
+
+                var items = new List<ItemData> {
+                    new ItemData("Thanh toan BuildSmart", 1, (int)order.TotalAmount)
+                };
+
+                var paymentData = new PaymentData(
+                    orderCode: orderCode,
+                    amount: (int)order.TotalAmount,
+                    description: "Thanh toan VLXD",
+                    items: items,
+                    cancelUrl: $"{domain}/Cart/PaymentCallback?orderId={order.Id}&success=false",
+                    returnUrl: $"{domain}/Cart/PaymentCallback?orderId={order.Id}&success=true"
+                );
+
+                var createPayment = await _payOS.createPaymentLink(paymentData);
+                return Redirect(createPayment.checkoutUrl);
+            }
+
             return View("OrderSuccess", order);
+        }
+
+        // ==========================================
+        // XỬ LÝ KẾT QUẢ TỪ PAYOS TRẢ VỀ
+        // ==========================================
+        [HttpGet]
+        public async Task<IActionResult> PaymentCallback(string orderId, bool success)
+        {
+            var order = await _context.Orders.FindAsync(orderId);
+            if (order == null) return NotFound();
+
+            if (success)
+            {
+                order.Status = "Đã thanh toán";
+                await _context.SaveChangesAsync();
+                return View("OrderSuccess", order);
+            }
+            else
+            {
+                order.Status = "Đã hủy";
+                await _context.SaveChangesAsync();
+                return RedirectToAction("Index");
+            }
         }
     }
 }
@@ -733,6 +884,54 @@ namespace WebBanVLXD.Controllers
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
+    }
+}
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Controllers\OrderController.cs
+==============================================================
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using WebBanVLXD.Models;
+using System.Linq;
+
+namespace WebBanVLXD.Controllers
+{
+    public class OrderController : Controller
+    {
+        private readonly AppDbContext _context;
+
+        public OrderController(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        // GET: /Order/Track
+        [HttpGet]
+        public IActionResult Track(string id)
+        {
+            // Lấy tất cả đơn hàng từ database, bao gồm chi tiết sản phẩm
+            var query = _context.Orders
+                .Include(o => o.OrderDetails)
+                .ThenInclude(od => od.Product)
+                .AsQueryable();
+
+            // Nếu người dùng có nhập mã vào ô tìm kiếm thì mới lọc
+            if (!string.IsNullOrEmpty(id))
+            {
+                query = query.Where(o => o.Id == id); // Lọc chính xác mã đơn
+                if (!query.Any())
+                {
+                    ViewBag.Error = "Không tìm thấy đơn hàng nào với mã: " + id;
+                }
+            }
+
+            // Trả về danh sách (nếu không nhập 'id' thì sẽ là toàn bộ đơn hàng)
+            // Sắp xếp đơn hàng mới nhất lên đầu (nếu Model của bạn có trường OrderDate thì đổi lại)
+            var orders = query.ToList();
+
+            return View(orders);
         }
     }
 }
@@ -2594,13 +2793,140 @@ namespace WebBanVLXD.Migrations
 }
 
 ==============================================================
-FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\AppDbContextModelSnapshot.cs
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\20260719113529_UpdateProductFinalSchema.cs
+==============================================================
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace WebBanVLXD.Migrations
+{
+    /// <inheritdoc />
+    public partial class UpdateProductFinalSchema : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "Specifications",
+                table: "Products");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ProductId",
+                table: "Reviews",
+                type: "nvarchar(450)",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "nvarchar(max)");
+
+            migrationBuilder.CreateTable(
+                name: "ProductImages",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ProductId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Url = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProductImages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ProductImages_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ProductVariants",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ProductId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    StockQuantity = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProductVariants", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ProductVariants_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Reviews_ProductId",
+                table: "Reviews",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProductImages_ProductId",
+                table: "ProductImages",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProductVariants_ProductId",
+                table: "ProductVariants",
+                column: "ProductId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Reviews_Products_ProductId",
+                table: "Reviews",
+                column: "ProductId",
+                principalTable: "Products",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropForeignKey(
+                name: "FK_Reviews_Products_ProductId",
+                table: "Reviews");
+
+            migrationBuilder.DropTable(
+                name: "ProductImages");
+
+            migrationBuilder.DropTable(
+                name: "ProductVariants");
+
+            migrationBuilder.DropIndex(
+                name: "IX_Reviews_ProductId",
+                table: "Reviews");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ProductId",
+                table: "Reviews",
+                type: "nvarchar(max)",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "nvarchar(450)");
+
+            migrationBuilder.AddColumn<string>(
+                name: "Specifications",
+                table: "Products",
+                type: "nvarchar(max)",
+                nullable: false,
+                defaultValue: "");
+        }
+    }
+}
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\20260719113529_UpdateProductFinalSchema.Designer.cs
 ==============================================================
 // <auto-generated />
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebBanVLXD.Models;
 
@@ -2609,9 +2935,11 @@ using WebBanVLXD.Models;
 namespace WebBanVLXD.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260719113529_UpdateProductFinalSchema")]
+    partial class UpdateProductFinalSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2740,10 +3068,6 @@ namespace WebBanVLXD.Migrations
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("Specifications")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int>("StockQuantity")
                         .HasColumnType("int");
 
@@ -2754,6 +3078,52 @@ namespace WebBanVLXD.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductImage", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductImages");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductVariant", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductVariants");
                 });
 
             modelBuilder.Entity("WebBanVLXD.Models.Review", b =>
@@ -2770,7 +3140,7 @@ namespace WebBanVLXD.Migrations
 
                     b.Property<string>("ProductId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("Rating")
                         .HasColumnType("int");
@@ -2780,6 +3150,8 @@ namespace WebBanVLXD.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
 
                     b.ToTable("Reviews");
                 });
@@ -2858,9 +3230,1223 @@ namespace WebBanVLXD.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("WebBanVLXD.Models.ProductImage", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Images")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductVariant", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Variants")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Review", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Reviews")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("WebBanVLXD.Models.Order", b =>
                 {
                     b.Navigation("OrderDetails");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Product", b =>
+                {
+                    b.Navigation("Images");
+
+                    b.Navigation("Reviews");
+
+                    b.Navigation("Variants");
+                });
+#pragma warning restore 612, 618
+        }
+    }
+}
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\20260721133736_UpdateOrder.cs
+==============================================================
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace WebBanVLXD.Migrations
+{
+    /// <inheritdoc />
+    public partial class UpdateOrder : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<string>(
+                name: "CouponCode",
+                table: "Orders",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<decimal>(
+                name: "DiscountAmount",
+                table: "Orders",
+                type: "decimal(18,2)",
+                nullable: false,
+                defaultValue: 0m);
+
+            migrationBuilder.AddColumn<string>(
+                name: "PaymentMethod",
+                table: "Orders",
+                type: "nvarchar(max)",
+                nullable: false,
+                defaultValue: "");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "CouponCode",
+                table: "Orders");
+
+            migrationBuilder.DropColumn(
+                name: "DiscountAmount",
+                table: "Orders");
+
+            migrationBuilder.DropColumn(
+                name: "PaymentMethod",
+                table: "Orders");
+        }
+    }
+}
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\20260721133736_UpdateOrder.Designer.cs
+==============================================================
+// <auto-generated />
+using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using WebBanVLXD.Models;
+
+#nullable disable
+
+namespace WebBanVLXD.Migrations
+{
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260721133736_UpdateOrder")]
+    partial class UpdateOrder
+    {
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        {
+#pragma warning disable 612, 618
+            modelBuilder
+                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("WebBanVLXD.Models.Coupon", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("ExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Coupons");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Order", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CouponCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.OrderDetail", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("OrderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("OrderDetails");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Product", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Brand")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("OldPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductImage", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductImages");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductVariant", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductVariants");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Review", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("Reviews");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.User", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AuthProvider")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FullName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Gender")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResetPasswordToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ResetPasswordTokenExpiry")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ThemePreference")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.OrderDetail", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Order", null)
+                        .WithMany("OrderDetails")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebBanVLXD.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductImage", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Images")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductVariant", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Variants")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Review", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Reviews")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Order", b =>
+                {
+                    b.Navigation("OrderDetails");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Product", b =>
+                {
+                    b.Navigation("Images");
+
+                    b.Navigation("Reviews");
+
+                    b.Navigation("Variants");
+                });
+#pragma warning restore 612, 618
+        }
+    }
+}
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\20260721134335_FixDecimalWarnings.cs
+==============================================================
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace WebBanVLXD.Migrations
+{
+    /// <inheritdoc />
+    public partial class FixDecimalWarnings : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+
+        }
+    }
+}
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\20260721134335_FixDecimalWarnings.Designer.cs
+==============================================================
+// <auto-generated />
+using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using WebBanVLXD.Models;
+
+#nullable disable
+
+namespace WebBanVLXD.Migrations
+{
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260721134335_FixDecimalWarnings")]
+    partial class FixDecimalWarnings
+    {
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        {
+#pragma warning disable 612, 618
+            modelBuilder
+                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("WebBanVLXD.Models.Coupon", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("ExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Coupons");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Order", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CouponCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.OrderDetail", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("OrderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("OrderDetails");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Product", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Brand")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("OldPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductImage", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductImages");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductVariant", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductVariants");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Review", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("Reviews");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.User", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AuthProvider")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FullName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Gender")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResetPasswordToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ResetPasswordTokenExpiry")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ThemePreference")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.OrderDetail", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Order", null)
+                        .WithMany("OrderDetails")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebBanVLXD.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductImage", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Images")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductVariant", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Variants")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Review", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Reviews")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Order", b =>
+                {
+                    b.Navigation("OrderDetails");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Product", b =>
+                {
+                    b.Navigation("Images");
+
+                    b.Navigation("Reviews");
+
+                    b.Navigation("Variants");
+                });
+#pragma warning restore 612, 618
+        }
+    }
+}
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Migrations\AppDbContextModelSnapshot.cs
+==============================================================
+// <auto-generated />
+using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using WebBanVLXD.Models;
+
+#nullable disable
+
+namespace WebBanVLXD.Migrations
+{
+    [DbContext(typeof(AppDbContext))]
+    partial class AppDbContextModelSnapshot : ModelSnapshot
+    {
+        protected override void BuildModel(ModelBuilder modelBuilder)
+        {
+#pragma warning disable 612, 618
+            modelBuilder
+                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("WebBanVLXD.Models.Coupon", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("ExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Coupons");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Order", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CouponCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.OrderDetail", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("OrderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("OrderDetails");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Product", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Brand")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("OldPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductImage", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductImages");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductVariant", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductVariants");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Review", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("Reviews");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.User", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AuthProvider")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FullName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Gender")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResetPasswordToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ResetPasswordTokenExpiry")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ThemePreference")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.OrderDetail", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Order", null)
+                        .WithMany("OrderDetails")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebBanVLXD.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductImage", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Images")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.ProductVariant", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Variants")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Review", b =>
+                {
+                    b.HasOne("WebBanVLXD.Models.Product", null)
+                        .WithMany("Reviews")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Order", b =>
+                {
+                    b.Navigation("OrderDetails");
+                });
+
+            modelBuilder.Entity("WebBanVLXD.Models.Product", b =>
+                {
+                    b.Navigation("Images");
+
+                    b.Navigation("Reviews");
+
+                    b.Navigation("Variants");
                 });
 #pragma warning restore 612, 618
         }
@@ -2884,6 +4470,7 @@ namespace WebBanVLXD.Models
         public DbSet<Review> Reviews { get; set; }
         public DbSet<ProductImage> ProductImages { get; set; }
         public DbSet<ProductVariant> ProductVariants { get; set; }
+
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {
@@ -2915,17 +4502,31 @@ namespace WebBanVLXD.Models
 ==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Models\Cupon.cs
 ==============================================================
+using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace WebBanVLXD.Models
 {
     public class Coupon
     {
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string Code { get; set; } = null!; // VD: GIAM20
-        public decimal DiscountPercent { get; set; }
-        public DateTime ExpiryDate { get; set; }
-        public bool IsActive { get; set; } = true;
+        [Key]
+        public int Id { get; set; }
+        
+        [Required]
+        [StringLength(50)]
+        public string Code { get; set; } = string.Empty;
+        
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal DiscountAmount { get; set; } // Số tiền được giảm
+        
+        public DateTime ExpiryDate { get; set; } // Hạn sử dụng
+        
+        public bool IsActive { get; set; } = true; // Trạng thái kích hoạt
+        
+        public int UsageLimit { get; set; } // Giới hạn tổng số lần sử dụng
+        
+        public int UsedCount { get; set; } = 0; // Số lần khách đã dùng mã này
     }
 }
 
@@ -2945,6 +4546,7 @@ namespace WebBanVLXD.Models
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Models\Order.cs
 ==============================================================
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema; // Bổ sung thư viện này
 
 namespace WebBanVLXD.Models {
     public class Order {
@@ -2953,9 +4555,16 @@ namespace WebBanVLXD.Models {
         [Required] public string CustomerName { get; set; } = null!;
         [Required] public string Phone { get; set; } = null!;
         [Required] public string Address { get; set; } = null!;
+        [Column(TypeName = "decimal(18,2)")]
         public decimal TotalAmount { get; set; }
         public DateTime OrderDate { get; set; } = DateTime.Now;
         public string Status { get; set; } = "Chờ xử lý";
+        // --- THÊM CÁC TRƯỜNG NÀY ---
+        public string PaymentMethod { get; set; } = "COD"; // COD hoặc BankTransfer
+        public string? CouponCode { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal DiscountAmount { get; set; }
+        // ---------------------------
         public List<OrderDetail> OrderDetails { get; set; } = new();
     }
 
@@ -2964,6 +4573,7 @@ namespace WebBanVLXD.Models {
         public string OrderId { get; set; } = null!;
         public string ProductId { get; set; } = null!;
         public int Quantity { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
         public Product Product { get; set; } = null!;
     }
@@ -2976,6 +4586,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
 
 namespace WebBanVLXD.Models
 {
@@ -2984,89 +4595,45 @@ namespace WebBanVLXD.Models
         [Key]
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
-        [Required(ErrorMessage = "Tên sản phẩm không được để trống")]
-        [StringLength(255)]
+        [Required]
         public string Name { get; set; } = null!;
-
         public string Description { get; set; } = string.Empty;
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal Price { get; set; } // Giá cơ bản
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal OldPrice { get; set; } // Giá cũ (để hiển thị gạch ngang)
-
-        public string Unit { get; set; } = "Cái"; // Bao, Tấn, Viên, m2...
-
-        public int StockQuantity { get; set; } // Số lượng tồn kho cơ bản
-
-        public string? ImageUrl { get; set; } // Ảnh đại diện chính (Thumbnail)
-
         public string Category { get; set; } = "Chung";
-
         public string Brand { get; set; } = string.Empty;
-
-        public string Specifications { get; set; } = string.Empty; // Thông số kỹ thuật
-
+        public string Unit { get; set; } = "Cái";
+        public string? ImageUrl { get; set; } 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // --- Navigation Properties (Mối quan hệ) ---
-        
+        // PHẢI CÓ 3 DÒNG NÀY ĐỂ FIX LỖI 1061
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Price { get; set; } 
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal OldPrice { get; set; } // Dòng này sẽ fix lỗi ở AppDbContext và EditProduct
+
+        public int StockQuantity { get; set; }
+
+        // Các quan hệ mới
         public List<ProductImage> Images { get; set; } = new();
         public List<ProductVariant> Variants { get; set; } = new();
         public List<Review> Reviews { get; set; } = new();
+
+        [NotMapped]
+        public double AverageRating => Reviews.Any() ? Reviews.Average(r => r.Rating) : 5.0;
     }
 
-    public class ProductImage
-    {
-        [Key]
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-
-        [Required]
+    public class ProductImage {
+        [Key] public string Id { get; set; } = Guid.NewGuid().ToString();
         public string ProductId { get; set; } = null!;
-
-        [ForeignKey("ProductId")]
-        public Product? Product { get; set; }
-
-        [Required]
         public string Url { get; set; } = null!;
     }
 
-    public class ProductVariant
-    {
-        [Key]
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-
-        [Required]
+    public class ProductVariant {
+        [Key] public string Id { get; set; } = Guid.NewGuid().ToString();
         public string ProductId { get; set; } = null!;
-
-        [ForeignKey("ProductId")]
-        public Product? Product { get; set; }
-
-        [Required]
-        public string Name { get; set; } = null!; // VD: "Đỏ - 2m", "Loại 1 - 50kg"
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal Price { get; set; } // Giá riêng cho biến thể này
-
+        public string Name { get; set; } = null!; 
+        [Column(TypeName = "decimal(18,2)")] public decimal Price { get; set; }
         public int StockQuantity { get; set; }
-    }
-
-    public class Review
-    {
-        [Key]
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-
-        [Required]
-        public string ProductId { get; set; } = null!;
-
-        [ForeignKey("ProductId")]
-        public Product? Product { get; set; }
-
-        public string CustomerName { get; set; } = "Khách hàng";
-        public string Comment { get; set; } = string.Empty;
-        public int Rating { get; set; } // Điểm đánh giá (1-5 sao)
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }
 
@@ -3151,33 +4718,6 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Pages\Admin\ProductList.cshtml
         </tbody>
     </table>
 </div>
-
-==============================================================
-FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Pages\Cart\Index.cshtml
-==============================================================
-
-==============================================================
-FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Pages\Cart\Index.cshtml.cs
-==============================================================
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Collections.Generic;
-using System.Linq;
-using WebBanVLXD.Models; // Khai báo để dùng CartItem và Product
-
-namespace WebBanVLXD.Pages.Cart
-{
-    public class IndexModel : PageModel
-    {
-        // Bạn nên sử dụng Session hoặc Cookie để lưu giỏ hàng tạm thời
-        public List<CartItem> Items { get; set; } = new List<CartItem>();
-        public decimal TotalAmount => Items.Sum(i => i.Product.Price * i.Quantity);
-
-        public void OnGet()
-        {
-            // Load danh sách sản phẩm từ Session vào biến Items
-        }
-    }
-}
 
 ==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Pages\Contact\Index.cshtml
@@ -3354,317 +4894,138 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Pages\Product\Details.cshtml
 ==============================================================
 @page "{id}"
 @model WebBanVLXD.Pages.Product.DetailsModel
-@{
-    ViewData["Title"] = Model.Product.Name;
-    Layout = "~/Views/Shared/_Layout.cshtml";
-    
-    // Tính phần trăm giảm giá
-    var discountPercent = 0;
-    if (Model.Product.OldPrice > Model.Product.Price && Model.Product.OldPrice > 0)
-    {
-        discountPercent = (int)Math.Round((1 - (Model.Product.Price / Model.Product.OldPrice)) * 100);
-    }
-}
+@{ Layout = "~/Views/Shared/_Layout.cshtml"; }
 
-<div class="container my-4">
-    <!-- BREADCRUMB -->
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb mb-0">
-            <li class="breadcrumb-item"><a href="/" class="text-muted text-decoration-none small">Trang chủ</a></li>
-            <li class="breadcrumb-item"><a href="/Product" class="text-muted text-decoration-none small">Sản phẩm</a></li>
-            <li class="breadcrumb-item"><a href="/Product?category=@Model.Product.Category" class="text-muted text-decoration-none small">@Model.Product.Category</a></li>
-            <li class="breadcrumb-item active small text-dark fw-medium text-truncate" style="max-width: 300px;" aria-current="page">@Model.Product.Name</li>
-        </ol>
-    </nav>
-
-    <!-- PRODUCT MAIN INFO -->
-    <div class="row g-5 mb-5">
-        <!-- Left Column: Images -->
-        <div class="col-lg-5">
-            <div class="product-gallery">
-                <div class="main-image mb-3 bg-light rounded-3 overflow-hidden border" style="height: 450px;">
-                    <img id="mainProductImage" src="@(Model.Product.ImageUrl ?? "https://placehold.co/800x800/e9ecef/495057?text=No+Image")" class="w-100 h-100 object-fit-cover" alt="@Model.Product.Name">
+<div class="container my-5">
+    <div class="row g-5">
+        <!-- SLIDER TRƯỢT ẢNH -->
+        <div class="col-lg-6">
+            <div id="slider" class="carousel slide shadow rounded-4 overflow-hidden" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    @if (Model.Product.Images != null && Model.Product.Images.Any())
+                    {
+                        @for (int i = 0; i < Model.Product.Images.Count; i++) {
+                            <div class="carousel-item @(i == 0 ? "active" : "")">
+                                <img src="@Model.Product.Images[i].Url" class="d-block w-100" style="height: 450px; object-fit: cover;">
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="carousel-item active">
+                            <!-- Hiển thị ảnh đại diện mặc định nếu không có nhiều ảnh -->
+                            <img src="@Model.Product.ImageUrl" class="d-block w-100" style="height: 450px; object-fit: cover;">
+                        </div>
+                    }
                 </div>
-                <div class="d-flex gap-2 overflow-auto pb-2 thumbnail-container">
-                    <!-- Ảnh chính làm thumbnail -->
-                    <div class="thumbnail active rounded-3 overflow-hidden border cursor-pointer flex-shrink-0" style="width: 80px; height: 80px;" onclick="changeMainImage(this, '@Model.Product.ImageUrl')">
-                        <img src="@(Model.Product.ImageUrl ?? "https://placehold.co/800x800/e9ecef/495057?text=No+Image")" class="w-100 h-100 object-fit-cover">
-                    </div>
-                    <!-- Các thumbnail giả lập (do CSDL hiện tại chỉ có 1 link ảnh) -->
-                    <div class="thumbnail rounded-3 overflow-hidden border cursor-pointer flex-shrink-0" style="width: 80px; height: 80px;" onclick="changeMainImage(this, 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=800&auto=format&fit=crop')">
-                        <img src="https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=800&auto=format&fit=crop" class="w-100 h-100 object-fit-cover">
-                    </div>
-                    <div class="thumbnail rounded-3 overflow-hidden border cursor-pointer flex-shrink-0" style="width: 80px; height: 80px;" onclick="changeMainImage(this, 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop')">
-                        <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop" class="w-100 h-100 object-fit-cover">
-                    </div>
-                    <div class="thumbnail rounded-3 overflow-hidden border cursor-pointer flex-shrink-0" style="width: 80px; height: 80px;" onclick="changeMainImage(this, 'https://images.unsplash.com/photo-1504307651254-35680f356f12?q=80&w=800&auto=format&fit=crop')">
-                        <img src="https://images.unsplash.com/photo-1504307651254-35680f356f12?q=80&w=800&auto=format&fit=crop" class="w-100 h-100 object-fit-cover">
-                    </div>
-                </div>
+                <button class="carousel-control-prev" data-bs-target="#slider" data-bs-slide="prev"><span class="carousel-control-prev-icon"></span></button>
+                <button class="carousel-control-next" data-bs-target="#slider" data-bs-slide="next"><span class="carousel-control-next-icon"></span></button>
             </div>
         </div>
 
-        <!-- Right Column: Details -->
-        <div class="col-lg-7">
-            <div class="d-flex align-items-center gap-3 mb-3">
-                <span class="badge bg-light text-muted border px-2 py-1 fw-medium" style="font-size: 0.75rem;">
-                    THƯƠNG HIỆU: <span style="color: var(--bs-dark-blue);">@(string.IsNullOrEmpty(Model.Product.Brand) ? "Đang cập nhật" : Model.Product.Brand.ToUpper())</span>
-                </span>
-                @if (Model.Product.StockQuantity > 0)
+        <!-- THÔNG TIN & CHỌN BIẾN THỂ -->
+        <div class="col-lg-6">
+            <h2 class="fw-bold">@Model.Product.Name</h2>
+            
+            <!-- Đánh giá thực tế từ Database -->
+            <div class="text-warning mb-3">
+                @for(int i=1; i<=5; i++){ <i class="fa-@(i <= Model.Product.AverageRating ? "solid" : "regular") fa-star"></i> }
+                <span class="text-muted small ms-2">(@Model.Product.Reviews.Count đánh giá)</span>
+            </div>
+
+            <h3 class="text-orange fw-bold" id="price">
+                @(Model.Product.Variants.Any() ? "Chọn phiên bản" : Model.Product.Price.ToString("N0") + " đ")
+            </h3>
+
+            <!-- FORM ĐỂ TRUYỀN DỮ LIỆU SANG CART CONTROLLER -->
+            <form action="/Cart/AddToCart" method="post">
+                <input type="hidden" name="productId" value="@Model.Product.Id" />
+
+                @if (Model.Product.Variants.Any())
                 {
-                    <span class="text-success small fw-bold"><i class="fa-solid fa-check me-1"></i> CÒN HÀNG</span>
-                }
-                else
-                {
-                    <span class="text-danger small fw-bold"><i class="fa-solid fa-xmark me-1"></i> HẾT HÀNG</span>
-                }
-            </div>
-
-            <h3 class="fw-bold mb-3" style="color: var(--bs-dark-blue); line-height: 1.4;">@Model.Product.Name</h3>
-
-            <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
-                <div class="text-warning me-2" style="font-size: 0.9rem;">
-                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
-                </div>
-                <span class="text-muted small me-3">42 Đánh giá</span>
-                <span class="text-muted small border-start ps-3">1.2k Đã bán</span>
-            </div>
-
-            <!-- Price Box -->
-            <div class="bg-light rounded-3 p-4 mb-4">
-                <div class="d-flex align-items-end gap-3 mb-2">
-                    <h2 class="text-orange fw-bold mb-0">@Model.Product.Price.ToString("N0") đ <span class="fs-5 text-muted fw-normal">/@Model.Product.Unit</span></h2>
-                    @if (Model.Product.OldPrice > Model.Product.Price)
-                    {
-                        <span class="text-muted text-decoration-line-through fs-6 mb-1">@Model.Product.OldPrice.ToString("N0") đ/@Model.Product.Unit</span>
-                        <span class="badge bg-danger mb-1">-@discountPercent%</span>
-                    }
-                </div>
-                <p class="text-muted small mb-0 fst-italic">* Giá đã bao gồm thuế VAT. Miễn phí vận chuyển cho đơn hàng trên 50 triệu.</p>
-            </div>
-
-            <!-- Variants (Giả lập giao diện chọn kích thước) -->
-            <div class="mb-4">
-                <p class="fw-bold small mb-2 text-dark">Chọn kích thước (Đường kính):</p>
-                <div class="d-flex gap-2 flex-wrap variant-selectors">
-                    <input type="radio" class="btn-check" name="options" id="opt1" autocomplete="off" checked>
-                    <label class="btn btn-outline-secondary btn-variant px-4 py-2" for="opt1">Ø6 mm</label>
-
-                    <input type="radio" class="btn-check" name="options" id="opt2" autocomplete="off">
-                    <label class="btn btn-outline-secondary btn-variant px-4 py-2" for="opt2">Ø8 mm</label>
-
-                    <input type="radio" class="btn-check" name="options" id="opt3" autocomplete="off">
-                    <label class="btn btn-outline-secondary btn-variant px-4 py-2" for="opt3">Ø10 mm</label>
-                </div>
-            </div>
-
-            <!-- Quantity & Actions -->
-            <div class="mb-5">
-                <p class="fw-bold small mb-2 text-dark">Số lượng (@Model.Product.Unit):</p>
-                <div class="d-flex align-items-center gap-4 mb-4">
-                    <div class="input-group quantity-group" style="width: 140px;">
-                        <button class="btn btn-light border text-dark fw-bold px-3" type="button" onclick="decreaseQty()">-</button>
-                        <input type="number" id="qtyInput" class="form-control text-center border-start-0 border-end-0 fw-bold" value="500" min="1">
-                        <button class="btn btn-light border text-dark fw-bold px-3" type="button" onclick="increaseQty()">+</button>
+                    <div class="mt-4">
+                        <label class="fw-bold mb-2">Chọn loại:</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            @foreach (var v in Model.Product.Variants) {
+                                <input type="radio" class="btn-check" name="variantId" id="@v.Id" value="@v.Id" data-price="@v.Price" data-stock="@v.StockQuantity" onchange="updateSelection(this)" required>
+                                <label class="btn btn-outline-primary" for="@v.Id">@v.Name</label>
+                            }
+                        </div>
                     </div>
-                    <span class="text-muted small">Tối thiểu: 100 @Model.Product.Unit</span>
-                </div>
+                }
 
-                <div class="d-flex gap-3">
-                    <button class="btn btn-lg fw-bold px-4 shadow-sm" style="background-color: var(--bs-dark-blue); color: white;">
-                        <i class="fa-solid fa-cart-shopping me-2"></i> THÊM VÀO GIỎ HÀNG
-                    </button>
-                    <button class="btn btn-orange btn-lg fw-bold px-5 shadow-sm text-white">
-                        MUA NGAY
-                    </button>
-                </div>
-            </div>
+                <div class="mt-4">
+                    @if (Model.Product.Variants.Any())
+                    {
+                        <!-- Nếu có biến thể, text này sẽ do JS cập nhật -->
+                        <p id="stock" class="fw-bold"></p>
+                    }
+                    else
+                    {
+                        <!-- Nếu không có biến thể, lấy trực tiếp tồn kho của sản phẩm -->
+                        <p id="stock" class="fw-bold @(Model.Product.StockQuantity > 0 ? "text-success" : "text-danger")">
+                            @(Model.Product.StockQuantity > 0 ? $"Còn hàng: {Model.Product.StockQuantity}" : "Hết hàng")
+                        </p>
+                    }
 
-            <!-- Policy Grid -->
-            <div class="row row-cols-2 g-3 pt-4 border-top">
-                <div class="col d-flex align-items-center">
-                    <i class="fa-solid fa-truck-fast text-muted fs-5 me-3"></i>
-                    <span class="text-muted small">Giao hàng toàn quốc trong 24h</span>
+                    <div class="d-flex gap-3 align-items-center">
+                        <input type="number" name="quantity" id="quantityInput" value="1" min="1" max="@(Model.Product.Variants.Any() ? "" : Model.Product.StockQuantity.ToString())" class="form-control text-center fw-bold" style="width: 80px;" required>
+                        
+                        <!-- Nút Submit Form -->
+                        <button type="submit" id="buy" class="btn btn-orange btn-lg text-white px-5 fw-bold shadow-sm" @(Model.Product.Variants.Any() || Model.Product.StockQuantity <= 0 ? "disabled" : "")>MUA NGAY</button>
+                    </div>
                 </div>
-                <div class="col d-flex align-items-center">
-                    <i class="fa-solid fa-shield-halved text-muted fs-5 me-3"></i>
-                    <span class="text-muted small">Bảo hành chính hãng 12 tháng</span>
-                </div>
-                <div class="col d-flex align-items-center">
-                    <i class="fa-solid fa-rotate-left text-muted fs-5 me-3"></i>
-                    <span class="text-muted small">Đổi trả trong 7 ngày</span>
-                </div>
-                <div class="col d-flex align-items-center">
-                    <i class="fa-solid fa-medal text-muted fs-5 me-3"></i>
-                    <span class="text-muted small">Cam kết chất lượng đạt chuẩn</span>
-                </div>
-            </div>
+            </form>
         </div>
     </div>
 
-    <!-- BOTTOM TABS & SIDEBAR -->
-    <div class="row g-5">
-        <!-- Product Tabs -->
-        <div class="col-lg-8">
-            <ul class="nav nav-tabs custom-tabs mb-4 border-bottom-0" id="productTab" role="tablist">
+    <!-- CHI TIẾT SẢN PHẨM Ở DƯỚI -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <ul class="nav nav-tabs custom-tabs" id="myTab" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active fw-bold" id="specs-tab" data-bs-toggle="tab" data-bs-target="#specs" type="button" role="tab">Thông số kỹ thuật</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-bold" id="desc-tab" data-bs-toggle="tab" data-bs-target="#desc" type="button" role="tab">Mô tả sản phẩm</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-bold" id="cert-tab" data-bs-toggle="tab" data-bs-target="#cert" type="button" role="tab">Chứng chỉ chất lượng</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-bold" id="review-tab" data-bs-toggle="tab" data-bs-target="#review" type="button" role="tab">Đánh giá khách hàng</button>
+                    <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#desc">Mô tả sản phẩm</button>
                 </li>
             </ul>
-            <div class="tab-content" id="productTabContent">
-                <!-- Tab: Specs -->
-                <div class="tab-pane fade show active" id="specs" role="tabpanel">
-                    <table class="table table-striped-columns table-borderless table-specs">
-                        <tbody>
-                            <tr>
-                                <td class="text-muted py-3 ps-3 w-50">Thương hiệu</td>
-                                <td class="fw-bold text-dark py-3 text-end pe-3">@(string.IsNullOrEmpty(Model.Product.Brand) ? "Tập đoàn Hòa Phát" : Model.Product.Brand)</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-3 ps-3">Mã sản phẩm</td>
-                                <td class="fw-bold text-dark py-3 text-end pe-3">HP-CB240T</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-3 ps-3">Tiêu chuẩn</td>
-                                <td class="fw-bold text-dark py-3 text-end pe-3">TCVN 1651-1:2018</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-3 ps-3">Giới hạn bền kéo (MPa)</td>
-                                <td class="fw-bold text-dark py-3 text-end pe-3">≥ 380</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-3 ps-3">Giới hạn chảy (MPa)</td>
-                                <td class="fw-bold text-dark py-3 text-end pe-3">≥ 240</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-3 ps-3">Độ giãn dài (%)</td>
-                                <td class="fw-bold text-dark py-3 text-end pe-3">≈ 20</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-3 ps-3">Bề mặt</td>
-                                <td class="fw-bold text-dark py-3 text-end pe-3">Bóng, trơn, không vết nứt</td>
-                            </tr>
-                            <tr>
-                                <td class="text-muted py-3 ps-3">Đóng gói</td>
-                                <td class="fw-bold text-dark py-3 text-end pe-3">Cuộn (1000kg - 2000kg)</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    
-                    @if (!string.IsNullOrEmpty(Model.Product.Specifications))
-                    {
-                        <div class="mt-4">
-                            <h6 class="fw-bold mb-3">Thông số khác từ nhà sản xuất:</h6>
-                            <p class="text-muted">@Model.Product.Specifications</p>
-                        </div>
+            <div class="tab-content p-4 bg-white shadow-sm rounded-bottom" id="myTabContent">
+                <div class="tab-pane fade show active" id="desc">
+                    @if(!string.IsNullOrEmpty(Model.Product.Description)) {
+                        @Html.Raw(Model.Product.Description.Replace("\n", "<br>"))
+                    } else {
+                        <p class="text-muted">Đang cập nhật nội dung mô tả...</p>
                     }
                 </div>
-
-                <!-- Tab: Description -->
-                <div class="tab-pane fade text-muted" id="desc" role="tabpanel" style="line-height: 1.8;">
-                    <h5 class="fw-bold text-dark mb-4">Mô tả tóm tắt</h5>
-                    @Html.Raw(Model.Product.Description.Replace("\n", "<br/>"))
-                    
-                    <!-- Nội dung giả lập thêm cho phần mô tả để giống thiết kế -->
-                    <p class="mt-3">Thép cuộn là dòng thép xây dựng phổ biến nhất hiện nay, được sản xuất trên dây chuyền công nghệ hiện đại, đáp ứng mọi yêu cầu khắt khe của các công trình dân dụng và công nghiệp.</p>
-                    <p>Sản phẩm có đặc tính dẻo dai, dễ uốn, được sử dụng rộng rãi trong việc làm cốt thép bê tông, lưới thép hàn, đai cột và nhiều hạng mục xây dựng khác.</p>
-                    <ul>
-                        <li>Độ bền cao, chịu lực tốt theo tiêu chuẩn Việt Nam.</li>
-                        <li>Chống ăn mòn và oxy hóa trong điều kiện môi trường khắc nghiệt.</li>
-                    </ul>
-                </div>
-                
-                <div class="tab-pane fade" id="cert" role="tabpanel">
-                    <p class="text-muted mt-3">Đang cập nhật chứng chỉ chất lượng...</p>
-                </div>
-                <div class="tab-pane fade" id="review" role="tabpanel">
-                    <p class="text-muted mt-3">Chưa có đánh giá nào.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar (Tư vấn & Khuyến mãi) -->
-        <div class="col-lg-4">
-            <!-- Consultant Card -->
-            <div class="card border-0 shadow-sm rounded-4 mb-4">
-                <div class="card-body p-4">
-                    <h6 class="fw-bold mb-4 d-flex align-items-center text-orange">
-                        <i class="fa-solid fa-headset fs-5 me-2"></i> Tư vấn mua hàng
-                    </h6>
-                    
-                    <div class="d-flex align-items-center justify-content-between mb-4">
-                        <div class="d-flex align-items-center">
-                            <img src="https://placehold.co/100x100/e9ecef/495057?text=MQ" class="rounded-circle me-3" style="width: 50px; height: 50px;" alt="Avatar">
-                            <div>
-                                <h6 class="fw-bold mb-0" style="color: var(--bs-dark-blue);">Mr. Minh Quân</h6>
-                                <span class="text-muted" style="font-size: 0.75rem;">Chuyên viên vật liệu thô</span>
-                            </div>
-                        </div>
-                        <a href="tel:0900000000" class="btn btn-light rounded-circle text-orange p-2 shadow-sm"><i class="fa-solid fa-phone"></i></a>
-                    </div>
-
-                    <div class="d-flex align-items-center justify-content-between mb-4">
-                        <div class="d-flex align-items-center">
-                            <img src="https://placehold.co/100x100/e9ecef/495057?text=HL" class="rounded-circle me-3" style="width: 50px; height: 50px;" alt="Avatar">
-                            <div>
-                                <h6 class="fw-bold mb-0" style="color: var(--bs-dark-blue);">Mr. Hoàng Long</h6>
-                                <span class="text-muted" style="font-size: 0.75rem;">Kỹ thuật công trình</span>
-                            </div>
-                        </div>
-                        <a href="tel:0900000001" class="btn btn-light rounded-circle text-orange p-2 shadow-sm"><i class="fa-solid fa-phone"></i></a>
-                    </div>
-
-                    <button class="btn btn-outline-dark w-100 fw-bold rounded-3 py-2">YÊU CẦU GỌI LẠI</button>
-                </div>
-            </div>
-
-            <!-- Project Banner -->
-            <div class="card border-0 rounded-4 text-white p-4 text-center" style="background-color: var(--bs-dark-blue);">
-                <p class="small text-warning fw-bold mb-2">DÀNH CHO DỰ ÁN</p>
-                <h4 class="fw-bold mb-3">Bạn cần mua số lượng lớn?</h4>
-                <p class="small mb-4" style="color: #9ab0d2;">Liên hệ phòng kinh doanh dự án để nhận chiết khấu lên đến 5-10%.</p>
-                <button class="btn btn-light w-100 fw-bold rounded-3 py-2 text-dark">NHẬN BÁO GIÁ DỰ ÁN</button>
             </div>
         </div>
     </div>
 </div>
 
-@section Scripts {
-    <script>
-        // JS Đổi ảnh chính khi click vào thumbnail
-        function changeMainImage(element, imageUrl) {
-            document.getElementById('mainProductImage').src = imageUrl;
-            // Xóa class active ở tất cả thumbnail
-            document.querySelectorAll('.thumbnail').forEach(function(thumb) {
-                thumb.classList.remove('active', 'border-primary');
-            });
-            // Thêm active cho thumbnail được click
-            element.classList.add('active', 'border-primary');
-        }
-
-        // JS Tăng giảm số lượng
-        function increaseQty() {
-            let input = document.getElementById('qtyInput');
-            input.value = parseInt(input.value) + 1;
-        }
+<script>
+    function updateSelection(radio) {
+        // Cập nhật giá hiển thị
+        document.getElementById('price').innerText = parseFloat(radio.dataset.price).toLocaleString() + " đ";
         
-        function decreaseQty() {
-            let input = document.getElementById('qtyInput');
-            if (parseInt(input.value) > 1) {
-                input.value = parseInt(input.value) - 1;
+        // Lấy thông tin tồn kho từ thuộc tính data-stock
+        const stock = parseInt(radio.dataset.stock);
+        const stockEl = document.getElementById('stock');
+        const buyBtn = document.getElementById('buy');
+        const qtyInput = document.getElementById('quantityInput');
+
+        if (stock > 0) {
+            stockEl.innerHTML = `<span class="text-success">Còn hàng: ${stock}</span>`;
+            buyBtn.disabled = false;
+            qtyInput.max = stock; // Không cho phép chọn lớn hơn số lượng tồn kho
+            
+            if (parseInt(qtyInput.value) > stock) {
+                qtyInput.value = stock;
             }
+        } else {
+            stockEl.innerHTML = `<span class="text-danger">Hết hàng</span>`;
+            buyBtn.disabled = true;
+            qtyInput.max = 1;
         }
-    </script>
-}
+    }
+</script>
 
 ==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Pages\Product\Details.cshtml.cs
@@ -3673,6 +5034,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using WebBanVLXD.Models;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebBanVLXD.Pages.Product
 {
@@ -3689,18 +5051,24 @@ namespace WebBanVLXD.Pages.Product
 
         public async Task<IActionResult> OnGetAsync(string id)
         {
-            if (string.IsNullOrEmpty(id))
+            if (string.IsNullOrEmpty(id)) return NotFound();
+
+            // Lấy dữ liệu vào một biến tạm trước
+            var productData = await _context.Products
+                .Include(p => p.Images)
+                .Include(p => p.Variants)
+                .Include(p => p.Reviews)
+                .FirstOrDefaultAsync(m => m.Id == id);
+
+            // Kiểm tra nếu không thấy sản phẩm thì thoát ngay
+            if (productData == null)
             {
                 return NotFound();
             }
 
-            var product = await _context.Products.FindAsync(id);
-            if (product == null)
-            {
-                return NotFound();
-            }
+            // Nếu có dữ liệu mới gán vào thuộc tính Product
+            Product = productData;
 
-            Product = product;
             return Page();
         }
     }
@@ -3780,6 +5148,7 @@ using WebBanVLXD.Models;
 using System.Collections.Generic;
 using System.Linq;
 using System;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebBanVLXD.Pages.Product
 {
@@ -4235,34 +5604,54 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Account\Register.cshtml
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\Coupons.cshtml
 ==============================================================
 @model IEnumerable<WebBanVLXD.Models.Coupon>
-@{ ViewData["Title"] = "Mã giảm giá"; Layout = "_AdminLayout"; }
+@{
+    ViewData["Title"] = "Mã giảm giá";
+    Layout = "_AdminLayout";
+}
 
 <div class="card card-admin p-4">
     <div class="d-flex justify-content-between mb-4">
         <h5 class="fw-bold">Danh sách mã giảm giá</h5>
-        <a asp-action="CreateCoupon" class="btn btn-orange text-white fw-bold">+ Tạo mã mới</a>
+        <a asp-action="CreateCoupon" class="btn btn-orange text-white fw-bold">
+            + Tạo mã mới
+        </a>
     </div>
+
     <table class="table table-hover">
         <thead>
             <tr>
-                <th>Mã Code</th><th>Giảm (%)</th><th>Hết hạn</th><th>Trạng thái</th><th>Thao tác</th>
+                <th>Mã Code</th>
+                <th>Số tiền giảm</th>
+                <th>Hết hạn</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
             </tr>
         </thead>
+
         <tbody>
-            @foreach (var c in Model) {
+        @foreach (var c in Model)
+        {
             <tr>
                 <td class="fw-bold text-primary">@c.Code</td>
-                <td>@c.DiscountPercent%</td>
+                <td>@c.DiscountAmount.ToString("N0") đ</td>
                 <td>@c.ExpiryDate.ToString("dd/MM/yyyy")</td>
                 <td>@(c.IsActive ? "Đang chạy" : "Tạm dừng")</td>
+
                 <td>
-                    <form asp-action="DeleteCoupon" method="post" onsubmit="return confirm('Xóa mã này?')">
+                    <form asp-action="DeleteCoupon" method="post"
+                          onsubmit="return confirm('Xóa mã này?')">
+
                         <input type="hidden" name="id" value="@c.Id" />
-                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-danger">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+
                     </form>
                 </td>
             </tr>
-            }
+        }
         </tbody>
     </table>
 </div>
@@ -4271,80 +5660,123 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\Coupons.cshtml
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\CreateCoupon.cshtml
 ==============================================================
 @model WebBanVLXD.Models.Coupon
-@{ Layout = "_AdminLayout"; }
+
+@{
+    Layout = "_AdminLayout";
+}
+
 <div class="card card-admin p-4">
+
     <h5 class="fw-bold mb-4">Tạo mã giảm giá mới</h5>
+
     <form asp-action="CreateCoupon" method="post">
+
         <div class="row g-3">
+
             <div class="col-md-6">
-                <label class="form-label">Mã Code (VD: GIAM30)</label>
-                <input asp-for="Code" class="form-control" required />
+                <label asp-for="Code" class="form-label"></label>
+                <input asp-for="Code" class="form-control" />
+                <span asp-validation-for="Code" class="text-danger"></span>
             </div>
+
             <div class="col-md-3">
-                <label class="form-label">Phần trăm giảm (%)</label>
-                <input asp-for="DiscountPercent" type="number" class="form-control" required />
+                <label asp-for="DiscountAmount" class="form-label">
+                    Số tiền giảm
+                </label>
+
+                <input asp-for="DiscountAmount"
+                       type="number"
+                       class="form-control" />
+
+                <span asp-validation-for="DiscountAmount"
+                      class="text-danger"></span>
             </div>
+
             <div class="col-md-3">
-                <label class="form-label">Ngày hết hạn</label>
-                <input asp-for="ExpiryDate" type="date" class="form-control" required />
+                <label asp-for="ExpiryDate" class="form-label">
+                    Ngày hết hạn
+                </label>
+
+                <input asp-for="ExpiryDate"
+                       type="date"
+                       class="form-control" />
             </div>
+
             <div class="col-12 mt-4">
-                <button type="submit" class="btn btn-primary px-4">Lưu mã</button>
-                <a asp-action="Coupons" class="btn btn-light border ms-2">Hủy</a>
+                <button type="submit"
+                        class="btn btn-primary px-4">
+                    Lưu mã
+                </button>
+
+                <a asp-action="Coupons"
+                   class="btn btn-light border ms-2">
+                    Hủy
+                </a>
             </div>
+
         </div>
+
     </form>
+
 </div>
 
 ==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\CreateProduct.cshtml
 ==============================================================
 @model WebBanVLXD.Models.Product
-@{
-    Layout = "_AdminLayout";
-    var categories = ViewBag.Categories as List<string> ?? new List<string>();
-}
+@{ Layout = "_AdminLayout"; var categories = ViewBag.Categories as List<string> ?? new List<string>(); }
+
 <div class="card card-admin p-4 shadow-sm">
-    <h5 class="fw-bold mb-4 text-primary">Thêm sản phẩm mới</h5>
+    <h5 class="fw-bold mb-4 text-primary">Thêm sản phẩm chuyên sâu</h5>
     <form asp-action="CreateProduct" method="post" enctype="multipart/form-data">
         <div class="row g-3">
-            <div class="col-md-8">
-                <label class="form-label fw-bold">Tên sản phẩm *</label>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Tên sản phẩm chính</label>
                 <input asp-for="Name" class="form-control" required />
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label fw-bold">Danh mục</label>
                 <select asp-for="Category" class="form-select">
-                    @foreach (var cat in categories)
-                    {
-                        <option value="@cat">@cat</option>
-                    }
+                    @foreach (var cat in categories) { <option value="@cat">@cat</option> }
                 </select>
             </div>
-            <div class="col-md-4">
-                <label class="form-label fw-bold">Giá bán (đ) *</label>
-                <input asp-for="Price" type="number" class="form-control" required />
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Chọn nhiều ảnh (Slider)</label>
+                <input type="file" name="moreImages" class="form-control" multiple accept="image/*" />
             </div>
-            <div class="col-md-4">
-                <label class="form-label fw-bold">Đơn vị</label>
-                <input asp-for="Unit" class="form-control" placeholder="Bao, Cái, Tấn..." />
+
+            <!-- PHẦN PHIÊN BẢN -->
+            <div class="col-12 mt-4 bg-light p-3 rounded border">
+                <div class="d-flex justify-content-between mb-3">
+                    <h6 class="fw-bold m-0">Phiên bản & Giá riêng</h6>
+                    <button type="button" class="btn btn-sm btn-dark" onclick="addVariant()">+ Thêm phiên bản</button>
+                </div>
+                <div id="variant-container">
+                    <div class="row g-2 mb-2 variant-item">
+                        <div class="col-md-5"><input type="text" name="vNames" class="form-control" placeholder="Tên (VD: Màu đỏ)" required></div>
+                        <div class="col-md-3"><input type="number" name="vPrices" class="form-control" placeholder="Giá" required></div>
+                        <div class="col-md-3"><input type="number" name="vStocks" class="form-control" placeholder="Tồn kho" required></div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-4">
-                <label class="form-label fw-bold">Ảnh sản phẩm</label>
-                <input type="file" name="imageFile" class="form-control" />
-            </div>
+
             <div class="col-12">
-                <label class="form-label fw-bold text-danger">Mô tả sản phẩm (Bắt buộc) *</label>
-                <textarea asp-for="Description" class="form-control" rows="4" required
-                          placeholder="Nhập mô tả chi tiết sản phẩm tại đây..."></textarea>
+                <label class="form-label fw-bold">Mô tả sản phẩm</label>
+                <textarea asp-for="Description" class="form-control" rows="4"></textarea>
             </div>
-            <div class="col-12 mt-4 text-end">
-                <a asp-action="Products" class="btn btn-light border px-4">Quay lại</a>
-                <button type="submit" class="btn btn-primary px-5">Lưu sản phẩm</button>
+            <div class="col-12 text-end">
+                <button type="submit" class="btn btn-primary px-5 fw-bold">LƯU SẢN PHẨM</button>
             </div>
         </div>
     </form>
 </div>
+
+<script>
+    function addVariant() {
+        const row = `<div class="row g-2 mb-2 variant-item"><div class="col-md-5"><input type="text" name="vNames" class="form-control" required></div><div class="col-md-3"><input type="number" name="vPrices" class="form-control" required></div><div class="col-md-3"><input type="number" name="vStocks" class="form-control" required></div><div class="col-md-1"><button type="button" class="btn btn-danger" onclick="this.closest('.variant-item').remove()">X</button></div></div>`;
+        document.getElementById('variant-container').insertAdjacentHTML('beforeend', row);
+    }
+</script>
 
 ==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\EditProduct.cshtml
@@ -4704,6 +6136,99 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Admin\Users.cshtml
 </div>
 
 ==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Cart\Checkout.cshtml
+==============================================================
+@model List<WebBanVLXD.Models.CartItem>
+@{ ViewData["Title"] = "Thanh toán"; }
+
+<div class="container my-5">
+    <form action="/Cart/ProcessCheckout" method="post">
+        <div class="row g-4">
+            <!-- Cột trái: Thông tin nhận hàng & Thanh toán -->
+            <div class="col-lg-7">
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4">
+                    <h5 class="fw-bold mb-4 text-primary"><i class="fa-solid fa-location-dot me-2"></i>Thông tin nhận hàng</h5>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Họ và tên người nhận</label>
+                        <input type="text" name="customerName" class="form-control" value="@User.Identity?.Name" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Số điện thoại</label>
+                        <input type="tel" name="phone" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Địa chỉ giao hàng chi tiết</label>
+                        <textarea name="address" class="form-control" rows="3" placeholder="Số nhà, đường, phường/xã, quận/huyện..." required></textarea>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 rounded-4 p-4">
+                    <h5 class="fw-bold mb-4 text-primary"><i class="fa-solid fa-credit-card me-2"></i>Phương thức thanh toán</h5>
+                    <div class="form-check mb-3 border p-3 rounded bg-light">
+                        <input class="form-check-input fs-5" type="radio" name="paymentMethod" id="cod" value="COD" checked>
+                        <label class="form-check-label fw-bold ms-2" for="cod">
+                            Thanh toán khi nhận hàng (COD)
+                            <span class="d-block text-muted small fw-normal mt-1">Khách hàng thanh toán bằng tiền mặt khi shipper giao hàng tới.</span>
+                        </label>
+                    </div>
+                    <div class="form-check border p-3 rounded">
+                        <input class="form-check-input fs-5" type="radio" name="paymentMethod" id="bank" value="BankTransfer">
+                        <label class="form-check-label fw-bold ms-2" for="bank">
+                            Chuyển khoản ngân hàng
+                            <span class="d-block text-muted small fw-normal mt-1">Vietcombank - 0123456789 - BUILDSMART. Vui lòng ghi chú mã đơn hàng.</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cột phải: Tóm tắt đơn hàng & Mã giảm giá -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm border-0 rounded-4 p-4 sticky-top" style="top: 100px;">
+                    <h5 class="fw-bold mb-4">Tóm tắt đơn hàng</h5>
+                    
+                    @foreach (var item in Model) {
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-secondary me-2">x@item.Quantity</span>
+                                <span class="text-truncate" style="max-width: 150px;">@item.Product.Name</span>
+                            </div>
+                            <span class="fw-bold">@((item.Product.Price * item.Quantity).ToString("N0")) đ</span>
+                        </div>
+                    }
+                    
+                    <hr class="my-4">
+                    
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold">Mã giảm giá (Coupon)</label>
+                        <div class="input-group">
+                            <input type="text" name="couponCode" class="form-control text-uppercase" placeholder="Nhập mã...">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-2 text-muted">
+                        <span>Tạm tính:</span>
+                        <span>@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3 text-muted">
+                        <span>Phí vận chuyển:</span>
+                        <span>Miễn phí</span>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <span class="fw-bold fs-5">Tổng tiền:</span>
+                        <span class="fw-bold fs-3 text-orange">@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-orange w-100 py-3 rounded-pill fw-bold text-white shadow-sm fs-5">ĐẶT HÀNG NGAY</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Cart\Index.cshtml
 ==============================================================
 @model List<WebBanVLXD.Models.CartItem>
@@ -4716,6 +6241,7 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Cart\Index.cshtml
 
     @if (Model.Count > 0) {
         <div class="row">
+            <!-- Cột trái: Danh sách sản phẩm trong giỏ -->
             <div class="col-lg-8">
                 <div class="table-responsive shadow-sm rounded-3">
                     <table class="table align-middle bg-white mb-0">
@@ -4741,7 +6267,9 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Cart\Index.cshtml
                                     <td>@item.Quantity @item.Product.Unit</td>
                                     <td class="fw-bold text-orange">@((item.Product.Price * item.Quantity).ToString("N0")) đ</td>
                                     <td>
-                                        <a asp-action="Remove" asp-route-productId="@item.Product.Id" class="text-danger"><i class="fa-solid fa-trash"></i></a>
+                                        <a asp-action="Remove" asp-route-productId="@item.Product.Id" class="text-danger">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </a>
                                     </td>
                                 </tr>
                             }
@@ -4750,32 +6278,27 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Cart\Index.cshtml
                 </div>
             </div>
 
-            <!-- Form Thanh toán -->
+            <!-- Cột phải: Tóm tắt giỏ hàng (Đã sửa lại để link sang trang Checkout) -->
             <div class="col-lg-4">
-                <div class="card border-0 shadow-sm p-4 rounded-4 bg-light">
-                    <h5 class="fw-bold mb-3">Thông tin nhận hàng</h5>
-                    <form asp-action="Checkout" method="post">
-                        <div class="mb-3">
-                            <label class="small fw-bold">Họ tên</label>
-                            <input type="text" name="customerName" class="form-control" required value="@User.Identity?.Name" />
-                        </div>
-                        <div class="mb-3">
-                            <label class="small fw-bold">Số điện thoại</label>
-                            <input type="tel" name="phone" class="form-control" required />
-                        </div>
-                        <div class="mb-3">
-                            <label class="small fw-bold">Địa chỉ giao hàng</label>
-                            <textarea name="address" class="form-control" rows="2" required></textarea>
-                        </div>
-                        <hr>
-                        <div class="d-flex justify-content-between mb-3">
-                            <span>Tổng tiền:</span>
-                            <h4 class="text-orange fw-bold">@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</h4>
-                        </div>
-                        <button type="submit" class="btn btn-orange w-100 fw-bold text-white py-3 rounded-3 shadow-sm">
-                            ĐẶT HÀNG NGAY
-                        </button>
-                    </form>
+                <div class="card border-0 shadow-sm p-4 rounded-4 bg-light sticky-top" style="top: 100px;">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-receipt me-2"></i>Tóm tắt giỏ hàng</h5>
+                    
+                    <div class="d-flex justify-content-between mb-3 text-muted">
+                        <span>Tạm tính:</span>
+                        <span>@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</span>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between mb-4">
+                        <span class="fw-bold fs-5">Tổng tiền:</span>
+                        <h4 class="text-orange fw-bold">@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</h4>
+                    </div>
+                    
+                    <!-- Nút này dùng thẻ <a> để gọi lệnh GET sang trang Checkout -->
+                    <a href="/Cart/Checkout" class="btn btn-orange w-100 fw-bold text-white py-3 rounded-pill shadow-sm fs-5 text-decoration-none text-center">
+                        TIẾN HÀNH THANH TOÁN
+                    </a>
                 </div>
             </div>
         </div>
@@ -4783,9 +6306,63 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Cart\Index.cshtml
         <div class="text-center py-5">
             <i class="fa-solid fa-cart-shopping fs-1 text-muted mb-3"></i>
             <h5>Giỏ hàng đang trống</h5>
-            <a href="/Product" class="btn btn-primary mt-3">Tiếp tục mua hàng</a>
+            <a href="/Product" class="btn btn-primary mt-3 rounded-pill px-4">Tiếp tục mua hàng</a>
         </div>
     }
+</div>
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Cart\Index.cshtml.cs
+==============================================================
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.Collections.Generic;
+using System.Linq;
+using WebBanVLXD.Models; // Khai báo để dùng CartItem và Product
+
+namespace WebBanVLXD.Pages.Cart
+{
+    public class IndexModel : PageModel
+    {
+        // Bạn nên sử dụng Session hoặc Cookie để lưu giỏ hàng tạm thời
+        public List<CartItem> Items { get; set; } = new List<CartItem>();
+        public decimal TotalAmount => Items.Sum(i => i.Product.Price * i.Quantity);
+
+        public void OnGet()
+        {
+            // Load danh sách sản phẩm từ Session vào biến Items
+        }
+    }
+}
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Cart\OrderSuccess.cshtml
+==============================================================
+@model WebBanVLXD.Models.Order
+@{ ViewData["Title"] = "Đặt hàng thành công"; }
+
+<div class="container my-5 text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0 rounded-4 p-5">
+                <div class="mb-4">
+                    <i class="fa-solid fa-circle-check text-success" style="font-size: 80px;"></i>
+                </div>
+                <h2 class="fw-bold text-dark mb-3">Đặt Hàng Thành Công!</h2>
+                <p class="text-muted mb-4">Cảm ơn <b>@Model.CustomerName</b> đã tin tưởng mua sắm tại BuildSmart. Mã đơn hàng của bạn là <strong class="text-primary">#@Model.Id.Substring(0,8).ToUpper()</strong>.</p>
+                
+                <div class="bg-light p-3 rounded-3 mb-4 text-start small">
+                    <p class="mb-1"><strong>Tổng tiền:</strong> <span class="text-orange fw-bold">@Model.TotalAmount.ToString("N0") đ</span></p>
+                    <p class="mb-1"><strong>Thanh toán:</strong> @(Model.PaymentMethod == "COD" ? "Thanh toán tiền mặt khi nhận hàng" : "Chuyển khoản ngân hàng")</p>
+                    <p class="mb-0"><strong>Giao đến:</strong> @Model.Address</p>
+                </div>
+
+                <div class="d-flex gap-3 justify-content-center">
+                    <a href="/Product" class="btn btn-outline-primary px-4 rounded-pill">Tiếp tục mua sắm</a>
+                    <a href="/" class="btn btn-orange text-white px-4 rounded-pill fw-bold">Về trang chủ</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 ==============================================================
@@ -4895,6 +6472,108 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Home\Privacy.cshtml
 <h1>@ViewData["Title"]</h1>
 
 <p>Use this page to detail your site's privacy policy.</p>
+
+==============================================================
+FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Order\Track.cshtml
+==============================================================
+@model List<WebBanVLXD.Models.Order>
+@{
+    ViewData["Title"] = "Tra cứu & Quản lý đơn hàng";
+}
+
+<div class="container my-5" style="min-height: 60vh;">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <h3 class="fw-bold mb-4 text-center" style="color: var(--bs-dark-blue);">Tra cứu tình trạng đơn hàng</h3>
+
+            <!-- Form nhập mã -->
+            <div class="card shadow-sm border-0 p-4 mb-4 rounded-4 bg-light">
+                <form asp-controller="Order" asp-action="Track" method="get">
+                    <div class="input-group input-group-lg">
+                        <input type="text" name="id" class="form-control" placeholder="Nhập mã đơn hàng của bạn (VD: ORD...)" value="@Context.Request.Query["id"]" />
+                        <button type="submit" class="btn btn-orange text-white fw-bold px-4">TRA CỨU</button>
+                    </div>
+                </form>
+                @if (ViewBag.Error != null)
+                {
+                    <div class="alert alert-danger mt-3 mb-0"><i class="fa-solid fa-triangle-exclamation me-2"></i>@ViewBag.Error</div>
+                }
+            </div>
+
+            <!-- Hiển thị danh sách đơn hàng -->
+            @if (Model != null && Model.Any())
+            {
+                <div class="card shadow-sm border-0 p-4 rounded-4">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-list-check me-2"></i>Danh sách đơn đặt hàng</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã đơn</th>
+                                    <th>Người nhận</th>
+                                    <th>Điện thoại</th>
+                                    <th>Tổng tiền</th>
+                                    <th>Thanh toán</th>
+                                    <th>Trạng thái</th>
+                                    <th class="text-center">Chi tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var order in Model)
+                                {
+                                    <tr>
+                                        <td class="fw-bold text-primary">#@order.Id.Substring(0, 8).ToUpper()</td>
+                                        <td>@order.CustomerName</td>
+                                        <td>@order.Phone</td>
+                                        <td class="fw-bold text-orange">@order.TotalAmount.ToString("N0") đ</td>
+                                        <td>
+                                            @if(order.PaymentMethod == "COD") {
+                                                <span class="badge bg-secondary">Tiền mặt</span>
+                                            } else {
+                                                <span class="badge bg-primary">Chuyển khoản</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning text-dark">@(order.Status ?? "Chờ xác nhận")</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-outline-dark rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#details-@order.Id">
+                                                Xem
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    
+                                    <!-- Dòng ẩn chứa chi tiết sản phẩm (Accordion) -->
+                                    <tr class="collapse" id="details-@order.Id">
+                                        <td colspan="7" class="p-0 border-0">
+                                            <div class="bg-light p-3 m-2 rounded-3 border">
+                                                <h6 class="fw-bold text-muted mb-2">Chi tiết sản phẩm:</h6>
+                                                <ul class="list-unstyled mb-1">
+                                                    @if(order.OrderDetails != null) {
+                                                        foreach(var item in order.OrderDetails) {
+                                                            <li class="mb-1">
+                                                                <i class="fa-solid fa-caret-right me-2 text-secondary"></i>
+                                                                <strong>@(item.Product?.Name ?? "Sản phẩm đã bị xóa")</strong> 
+                                                                (Số lượng: @item.Quantity) - <span class="text-danger fw-bold">@((item.Price * item.Quantity).ToString("N0")) đ</span>
+                                                            </li>
+                                                        }
+                                                    }
+                                                </ul>
+                                                <div class="mt-2 text-muted small">
+                                                    <i class="fa-solid fa-location-dot me-1"></i> <strong>Giao đến:</strong> @order.Address
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
 
 ==============================================================
 FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Shared\Components\CategoryMenu\Default.cshtml
@@ -5247,7 +6926,7 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\Views\Shared\_Layout.cshtml
                 <span><i class="fa-solid fa-envelope me-1"></i> contact@buildsmart.vn</span>
             </div>
             <div>
-                <a href="#" class="text-white text-decoration-none me-3">Tra c?u don h�ng</a>
+                <a href="/Order/Track">Tra c?u don h�ng</a>
                 <a href="#" class="text-white text-decoration-none">H? th?ng c?a h�ng</a>
             </div>
         </div>
@@ -5802,6 +7481,11 @@ FILE: C:\Users\admin\Documents\GitHub\WebBanVLXD\appsettings.json
   "ConnectionStrings": {
     "DefaultConnection": "Server=(localdb)\\MSSQLLocalDB;Database=WebBanVLXD_DB;Trusted_Connection=True;MultipleActiveResultSets=True;TrustServerCertificate=True;"
   },
+"PayOS": {
+    "ClientId": "c73d7dea-f1cf-42cd-8970-bd75a81923c2",
+    "ApiKey": "716b5298-4142-4a2f-bcf9-213bc3985dde",
+    "ChecksumKey": "99be1fc8a5ec100f164701a38697fe1edc8f7377b6d983f4fcee5bd524814f17"
+  },
   "Logging": {
     "LogLevel": {
       "Default": "Information",
@@ -5818,29 +7502,36 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using WebBanVLXD.Models;
+using Net.payOS; // Bắt buộc phải là Net.payOS
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Thêm dịch vụ Controller, Views và Razor Pages
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
-// 1. Cấu hình SQL Server
+// ================= SQL Server =================
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString)
-);
+    options.UseSqlServer(connectionString));
 
-// 2. CẤU HÌNH SESSION (BẮT BUỘC CHO GIỎ HÀNG)
+// ================= Session =================
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Giỏ hàng tồn tại trong 30 phút chờ
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
 
-// 3. Cấu hình Cookie Authentication & OAuth (Google/Facebook)
+// ================= PayOS =================
+var payOS = new Net.payOS.PayOS(
+    builder.Configuration["PayOS:ClientId"] ?? "",
+    builder.Configuration["PayOS:ApiKey"] ?? "",
+    builder.Configuration["PayOS:ChecksumKey"] ?? ""
+);
+builder.Services.AddSingleton(payOS);
+
+// ================= Authentication =================
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -5863,6 +7554,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AppSecret = "2b0980baa91e5cfe3c5d474f8a9ee3b2";
     });
 
+// ================= Forward Headers =================
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
@@ -5874,7 +7566,7 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-// Cấu hình Pipeline xử lý yêu cầu HTTP
+// ================= Middleware =================
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -5886,8 +7578,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// BẬT SESSION TRƯỚC AUTHENTICATION
-app.UseSession(); 
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();

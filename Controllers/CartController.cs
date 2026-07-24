@@ -38,7 +38,7 @@ namespace WebBanVLXD.Controllers
         public IActionResult Index() => View(GetCartItems());
 
         [HttpPost]
-        public IActionResult AddToCart(string productId, int quantity = 1)
+        public IActionResult AddToCart(string productId, int quantity = 1, string submitAction = "add")
         {
             var product = _context.Products.Find(productId);
             if (product == null) return NotFound();
@@ -50,9 +50,24 @@ namespace WebBanVLXD.Controllers
             else cart.Add(new CartItem { Product = product, Quantity = quantity });
 
             SaveCartItems(cart);
+
+            // KIỂM TRA HÀNH ĐỘNG CỦA NÚT SUBMIT
+            if (submitAction == "buy")
+            {
+                // Nhấn "Mua ngay" -> Tới trang Checkout
+                return RedirectToAction("Checkout");
+            }
+
+            // Nhấn "Thêm vào giỏ" -> Điều hướng khách ở lại đúng trang hiện tại
+            string refererUrl = Request.Headers["Referer"].ToString();
+            if (!string.IsNullOrEmpty(refererUrl))
+            {
+                return Redirect(refererUrl);
+            }
+
+            // Nếu không lấy được URL trang trước đó, đưa về trang Giỏ hàng mặc định
             return RedirectToAction("Index");
         }
-
         public IActionResult Remove(string productId)
         {
             var cart = GetCartItems();
@@ -81,7 +96,38 @@ namespace WebBanVLXD.Controllers
             var cart = GetCartItems();
             if (cart.Count == 0) return RedirectToAction("Index");
 
-            decimal totalAmount = cart.Sum(i => i.Product.Price * i.Quantity);
+            // BƯỚC CẢI TIẾN: Lọc các sản phẩm còn tồn tại trong DB, lấy giá thật từ DB để chống hack
+            var validOrderDetails = new List<OrderDetail>();
+            decimal totalAmount = 0;
+
+            foreach (var item in cart)
+            {
+                var dbProduct = _context.Products.Find(item.Product.Id);
+                if (dbProduct != null)
+                {
+                    validOrderDetails.Add(new OrderDetail
+                    {
+                        ProductId = dbProduct.Id,
+                        Quantity = item.Quantity,
+                        Price = dbProduct.Price // Lấy giá chuẩn từ Database
+                    });
+
+                    // Tính tổng tiền dựa trên sản phẩm thật
+                    totalAmount += dbProduct.Price * item.Quantity;
+
+                    // Trừ tồn kho luôn
+                    dbProduct.StockQuantity -= item.Quantity;
+                }
+            }
+
+            // Nếu sản phẩm trong giỏ đã bị admin xóa hết khỏi DB -> Xóa Session và báo lỗi
+            if (validOrderDetails.Count == 0)
+            {
+                HttpContext.Session.Remove("Cart");
+                return RedirectToAction("Index");
+            }
+
+            // XỬ LÝ MÃ GIẢM GIÁ
             decimal discountAmount = 0;
 
             if (!string.IsNullOrEmpty(couponCode))
@@ -103,39 +149,26 @@ namespace WebBanVLXD.Controllers
                 }
             }
 
+            // TẠO ĐƠN HÀNG
             var order = new Order
             {
                 UserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
                 CustomerName = customerName,
                 Phone = phone,
                 Address = address,
-                TotalAmount = totalAmount - discountAmount,
+                TotalAmount = totalAmount - discountAmount, // Trừ mã giảm giá sau khi cộng tổng
                 PaymentMethod = paymentMethod,
                 CouponCode = couponCode,
                 DiscountAmount = discountAmount,
                 Status = paymentMethod == "BankTransfer" ? "Chờ thanh toán" : "Chờ xử lý",
-                OrderDetails = cart.Select(i => new OrderDetail
-                {
-                    ProductId = i.Product.Id,
-                    Quantity = i.Quantity,
-                    Price = i.Product.Price
-                }).ToList()
+                OrderDetails = validOrderDetails // Chỉ dùng danh sách các sản phẩm hợp lệ
             };
 
             _context.Orders.Add(order);
-
-            // Trừ số lượng tồn kho
-            foreach (var item in cart)
-            {
-                var product = _context.Products.Find(item.Product.Id);
-                if (product != null)
-                {
-                    product.StockQuantity -= item.Quantity;
-                }
-            }
-
             await _context.SaveChangesAsync();
-            HttpContext.Session.Remove("Cart");
+            
+            // Xóa session giỏ hàng sau khi đặt thành công
+            HttpContext.Session.Remove("Cart"); 
 
             // XỬ LÝ PAYOS NẾU CHỌN CHUYỂN KHOẢN NGÂN HÀNG
             if (paymentMethod == "BankTransfer")

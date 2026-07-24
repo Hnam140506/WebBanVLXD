@@ -1,7 +1,22 @@
 ﻿<!DOCTYPE html>
+@using Microsoft.AspNetCore.Http
+@using Newtonsoft.Json
+@using WebBanVLXD.Models
 @{
     // Lấy đường dẫn hiện tại của trình duyệt để làm sáng menu tương ứng
     var currentPath = Context.Request.Path.ToString().ToLower();
+
+    // TÍNH TỔNG SỐ LƯỢNG SẢN PHẨM TRONG GIỎ HÀNG
+    int cartCount = 0;
+    var sessionCart = Context.Session.GetString("Cart");
+    if (!string.IsNullOrEmpty(sessionCart))
+    {
+        var cart = JsonConvert.DeserializeObject<List<CartItem>>(sessionCart);
+        if (cart != null)
+        {
+            cartCount = cart.Sum(item => item.Quantity);
+        }
+    }
 }
 <html lang="vi">
 
@@ -80,7 +95,7 @@
                 <a href="/Cart" class="position-relative text-dark text-decoration-none">
                     <i class="fa-solid fa-cart-shopping fs-5"></i>
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-orange text-white"
-                          style="font-size: 0.65rem; padding: 0.35em 0.5em;">0</span>
+                          style="font-size: 0.65rem; padding: 0.35em 0.5em;">@cartCount</span>
                 </a>
 
                 @if (User.Identity != null && User.Identity.IsAuthenticated)

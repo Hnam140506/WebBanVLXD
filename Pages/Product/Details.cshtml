@@ -19,7 +19,6 @@
                     else
                     {
                         <div class="carousel-item active">
-                            <!-- Hiển thị ảnh đại diện mặc định nếu không có nhiều ảnh -->
                             <img src="@Model.Product.ImageUrl" class="d-block w-100" style="height: 450px; object-fit: cover;">
                         </div>
                     }
@@ -33,7 +32,6 @@
         <div class="col-lg-6">
             <h2 class="fw-bold">@Model.Product.Name</h2>
             
-            <!-- Đánh giá thực tế từ Database -->
             <div class="text-warning mb-3">
                 @for(int i=1; i<=5; i++){ <i class="fa-@(i <= Model.Product.AverageRating ? "solid" : "regular") fa-star"></i> }
                 <span class="text-muted small ms-2">(@Model.Product.Reviews.Count đánh giá)</span>
@@ -43,7 +41,7 @@
                 @(Model.Product.Variants.Any() ? "Chọn phiên bản" : Model.Product.Price.ToString("N0") + " đ")
             </h3>
 
-            <!-- FORM ĐỂ TRUYỀN DỮ LIỆU SANG CART CONTROLLER -->
+            <!-- FORM ĐẶT HÀNG TRUYỀN DỮ LIỆU SANG CART -->
             <form action="/Cart/AddToCart" method="post">
                 <input type="hidden" name="productId" value="@Model.Product.Id" />
 
@@ -63,22 +61,27 @@
                 <div class="mt-4">
                     @if (Model.Product.Variants.Any())
                     {
-                        <!-- Nếu có biến thể, text này sẽ do JS cập nhật -->
                         <p id="stock" class="fw-bold"></p>
                     }
                     else
                     {
-                        <!-- Nếu không có biến thể, lấy trực tiếp tồn kho của sản phẩm -->
                         <p id="stock" class="fw-bold @(Model.Product.StockQuantity > 0 ? "text-success" : "text-danger")">
                             @(Model.Product.StockQuantity > 0 ? $"Còn hàng: {Model.Product.StockQuantity}" : "Hết hàng")
                         </p>
                     }
 
-                    <div class="d-flex gap-3 align-items-center">
+                    <div class="d-flex gap-3 align-items-center mt-3">
                         <input type="number" name="quantity" id="quantityInput" value="1" min="1" max="@(Model.Product.Variants.Any() ? "" : Model.Product.StockQuantity.ToString())" class="form-control text-center fw-bold" style="width: 80px;" required>
                         
-                        <!-- Nút Submit Form -->
-                        <button type="submit" id="buy" class="btn btn-orange btn-lg text-white px-5 fw-bold shadow-sm" @(Model.Product.Variants.Any() || Model.Product.StockQuantity <= 0 ? "disabled" : "")>MUA NGAY</button>
+                        <!-- NÚT THÊM VÀO GIỎ HÀNG -->
+                        <button type="submit" name="submitAction" value="add" id="addToCart" class="btn btn-outline-primary btn-lg px-4 fw-bold shadow-sm" @(Model.Product.Variants.Any() || Model.Product.StockQuantity <= 0 ? "disabled" : "")>
+                            <i class="fa-solid fa-cart-plus"></i> THÊM VÀO GIỎ
+                        </button>
+
+                        <!-- NÚT MUA NGAY -->
+                        <button type="submit" name="submitAction" value="buy" id="buyNow" class="btn btn-orange btn-lg text-white px-5 fw-bold shadow-sm" @(Model.Product.Variants.Any() || Model.Product.StockQuantity <= 0 ? "disabled" : "")>
+                            MUA NGAY
+                        </button>
                     </div>
                 </div>
             </form>
@@ -92,14 +95,84 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#desc">Mô tả sản phẩm</button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#reviews">Đánh giá (@Model.Product.Reviews.Count)</button>
+                </li>
             </ul>
             <div class="tab-content p-4 bg-white shadow-sm rounded-bottom" id="myTabContent">
+                <!-- Tab Mô tả -->
                 <div class="tab-pane fade show active" id="desc">
                     @if(!string.IsNullOrEmpty(Model.Product.Description)) {
                         @Html.Raw(Model.Product.Description.Replace("\n", "<br>"))
                     } else {
                         <p class="text-muted">Đang cập nhật nội dung mô tả...</p>
                     }
+                </div>
+
+                <!-- Tab Đánh giá -->
+                <div class="tab-pane fade" id="reviews">
+                    @if (Model.CanReview)
+                    {
+                        <div class="card mb-4 shadow-sm border-0 bg-light p-3">
+                            <div class="card-body">
+                                <h5 class="fw-bold mb-3">Viết đánh giá của bạn</h5>
+                                <!-- Bắn về Handler OnPostAddReview trong PageModel -->
+                                <form method="post" asp-page-handler="AddReview">
+                                    <input type="hidden" name="productId" value="@Model.Product.Id" />
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Mức độ hài lòng:</label>
+                                        <select name="rating" class="form-select w-auto" required>
+                                            <option value="5">⭐⭐⭐⭐⭐ - Tuyệt vời</option>
+                                            <option value="4">⭐⭐⭐⭐ - Rất tốt</option>
+                                            <option value="3">⭐⭐⭐ - Bình thường</option>
+                                            <option value="2">⭐⭐ - Tạm được</option>
+                                            <option value="1">⭐ - Rất tệ</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <textarea name="comment" class="form-control" rows="3" placeholder="Chia sẻ cảm nhận của bạn về chất lượng sản phẩm..." required></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary px-4 fw-bold">Gửi đánh giá</button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                    else if (User.Identity != null && User.Identity.IsAuthenticated)
+                    {
+                        <div class="alert alert-info">
+                            <i class="fa-solid fa-circle-info me-2"></i> Bạn cần mua sản phẩm này và đơn hàng được giao thành công để có thể đánh giá (hoặc bạn đã sử dụng hết lượt đánh giá tương ứng với số đơn hàng).
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            Vui lòng <a href="/Account/Login">đăng nhập</a> và mua hàng để được để lại đánh giá.
+                        </div>
+                    }
+
+                    <!-- Danh sách Reviews -->
+                    <div class="review-list mt-4">
+                        @if (Model.Product.Reviews.Any())
+                        {
+                            @foreach (var review in Model.Product.Reviews.OrderByDescending(r => r.CreatedAt))
+                            {
+                                <div class="border-bottom pb-3 mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <strong>@review.UserName <span class="badge bg-success ms-2 fw-normal"><i class="fa-solid fa-check me-1"></i> Đã mua hàng</span></strong>
+                                        <span class="text-muted small">@review.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                                    </div>
+                                    <div class="text-warning small mb-2">
+                                        @for (int i = 1; i <= 5; i++) { <i class="fa-@(i <= review.Rating ? "solid" : "regular") fa-star"></i> }
+                                    </div>
+                                    <p class="mb-0">@review.Comment</p>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center py-4">Chưa có đánh giá nào cho sản phẩm này.</p>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
@@ -108,26 +181,27 @@
 
 <script>
     function updateSelection(radio) {
-        // Cập nhật giá hiển thị
         document.getElementById('price').innerText = parseFloat(radio.dataset.price).toLocaleString() + " đ";
         
-        // Lấy thông tin tồn kho từ thuộc tính data-stock
         const stock = parseInt(radio.dataset.stock);
         const stockEl = document.getElementById('stock');
-        const buyBtn = document.getElementById('buy');
+        const buyNowBtn = document.getElementById('buyNow');
+        const addToCartBtn = document.getElementById('addToCart');
         const qtyInput = document.getElementById('quantityInput');
 
         if (stock > 0) {
             stockEl.innerHTML = `<span class="text-success">Còn hàng: ${stock}</span>`;
-            buyBtn.disabled = false;
-            qtyInput.max = stock; // Không cho phép chọn lớn hơn số lượng tồn kho
+            buyNowBtn.disabled = false;
+            addToCartBtn.disabled = false;
+            qtyInput.max = stock; 
             
             if (parseInt(qtyInput.value) > stock) {
                 qtyInput.value = stock;
             }
         } else {
             stockEl.innerHTML = `<span class="text-danger">Hết hàng</span>`;
-            buyBtn.disabled = true;
+            buyNowBtn.disabled = true;
+            addToCartBtn.disabled = true;
             qtyInput.max = 1;
         }
     }
