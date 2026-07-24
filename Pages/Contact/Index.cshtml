@@ -66,44 +66,56 @@
             </div>
         </div>
 
-        <!-- CỘT PHẢI: FORM GỬI TIN NHẮN ĐÃ TỐI ƯU GỌN -->
+        <!-- CỘT PHẢI: FORM GỬI TIN NHẮN -->
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-body p-4">
                     <h4 class="fw-bold mb-1" style="color: var(--bs-dark-blue);">Gửi tin nhắn cho chúng tôi</h4>
                     <p class="text-muted small mb-3">Đội ngũ của chúng tôi sẽ liên hệ lại trong vòng 24 giờ.</p>
 
-                    <form method="post">
+                    <!-- HIỂN THỊ THÔNG BÁO THÀNH CÔNG -->
+                    @if (TempData["SuccessMessage"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show rounded-3 small shadow-sm" role="alert">
+                            <i class="fa-solid fa-circle-check me-2"></i> @TempData["SuccessMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form method="post" asp-page="/Contact/Index">
+                        <!-- THÊM MÃ BẢO MẬT ĐỂ TRÁNH LỖI 400 BAD REQUEST -->
+                        @Html.AntiForgeryToken()
+
                         <div class="row g-2 mb-2">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold small text-dark mb-1">Họ và tên *</label>
-                                <input type="text" class="form-control form-control-sm form-control-custom" placeholder="Nguyễn Văn A" required>
+                                <input type="text" name="FullName" class="form-control form-control-sm form-control-custom" placeholder="Nguyễn Văn A" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold small text-dark mb-1">Số điện thoại *</label>
-                                <input type="tel" class="form-control form-control-sm form-control-custom" placeholder="0901 234 567" required>
+                                <input type="tel" name="Phone" class="form-control form-control-sm form-control-custom" placeholder="0901 234 567" required>
                             </div>
                         </div>
 
                         <div class="row g-2 mb-2">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold small text-dark mb-1">Email</label>
-                                <input type="email" class="form-control form-control-sm form-control-custom" placeholder="example@gmail.com">
+                                <input type="email" name="Email" class="form-control form-control-sm form-control-custom" placeholder="example@gmail.com">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold small text-dark mb-1">Vấn đề cần tư vấn</label>
-                                <select class="form-select form-control-sm form-control-custom text-muted">
-                                    <option selected>Báo giá vật liệu</option>
-                                    <option>Hỗ trợ kỹ thuật</option>
-                                    <option>Chính sách vận chuyển</option>
-                                    <option>Khác</option>
+                                <select name="Subject" class="form-select form-control-sm form-control-custom text-muted">
+                                    <option value="Báo giá vật liệu" selected>Báo giá vật liệu</option>
+                                    <option value="Hỗ trợ kỹ thuật">Hỗ trợ kỹ thuật</option>
+                                    <option value="Chính sách vận chuyển">Chính sách vận chuyển</option>
+                                    <option value="Khác">Khác</option>
                                 </select>
                             </div>
                         </div>
 
                         <div class="mb-2">
                             <label class="form-label fw-bold small text-dark mb-1">Nội dung tin nhắn *</label>
-                            <textarea class="form-control form-control-sm form-control-custom" rows="2" placeholder="Bạn cần giúp đỡ điều gì?" required></textarea>
+                            <textarea name="Message" class="form-control form-control-sm form-control-custom" rows="2" placeholder="Bạn cần giúp đỡ điều gì?" required></textarea>
                         </div>
 
                         <div class="form-check mb-3">

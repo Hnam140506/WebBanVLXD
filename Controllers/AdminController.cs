@@ -89,7 +89,7 @@ namespace WebBanVLXD.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateProduct(Product product, List<IFormFile> moreImages, 
+        public async Task<IActionResult> CreateProduct(Product product, List<IFormFile> moreImages,
             string[] vNames, decimal[] vPrices, int[] vStocks)
         {
             // 1. Xử lý lưu nhiều ảnh
@@ -108,7 +108,8 @@ namespace WebBanVLXD.Controllers
             {
                 for (int i = 0; i < vNames.Length; i++)
                 {
-                    product.Variants.Add(new ProductVariant {
+                    product.Variants.Add(new ProductVariant
+                    {
                         Name = vNames[i],
                         Price = vPrices[i],
                         StockQuantity = vStocks[i]
@@ -133,28 +134,38 @@ namespace WebBanVLXD.Controllers
                 .Include(p => p.Images)
                 .Include(p => p.Variants)
                 .FirstOrDefault(p => p.Id == id);
-                
+
             if (product == null) return NotFound();
             ViewBag.Categories = CategoryList;
             return View(product);
         }
 
         [HttpPost]
-        public async Task<IActionResult> EditProduct(Product product, List<IFormFile> moreImages)
+        public async Task<IActionResult> EditProduct(Product product, IFormFile imageFile)
         {
-            var existing = _context.Products.AsNoTracking().FirstOrDefault(p => p.Id == product.Id);
+            // 1. Lấy sản phẩm cũ từ Database (bỏ AsNoTracking để EF theo dõi sự thay đổi)
+            var existing = _context.Products.FirstOrDefault(p => p.Id == product.Id);
             if (existing == null) return NotFound();
 
-            if (moreImages != null && moreImages.Count > 0)
+            // 2. Chỉ cập nhật các thông tin văn bản/số cơ bản
+            existing.Name = product.Name;
+            existing.Category = product.Category;
+            existing.Price = product.Price;
+            existing.OldPrice = product.OldPrice;
+            existing.Unit = product.Unit;
+            existing.Brand = product.Brand;
+            existing.Description = product.Description;
+
+            // 3. Xử lý Ảnh đại diện (ImageUrl)
+            // - Tham số "imageFile" giờ đã khớp với name="imageFile" bên HTML
+            // - Nếu admin có chọn file ảnh mới -> Lưu ảnh và ghi đè link
+            // - Nếu không chọn ảnh mới -> Bỏ qua, ảnh cũ trong Database vẫn được giữ nguyên
+            if (imageFile != null && imageFile.Length > 0)
             {
-                foreach (var file in moreImages)
-                {
-                    string url = await SaveImage(file);
-                    _context.ProductImages.Add(new ProductImage { ProductId = product.Id, Url = url });
-                }
+                existing.ImageUrl = await SaveImage(imageFile);
             }
 
-            _context.Update(product);
+            // 4. Lưu thay đổi
             await _context.SaveChangesAsync();
             return RedirectToAction("Products");
         }
@@ -244,10 +255,10 @@ namespace WebBanVLXD.Controllers
         {
             string folder = Path.Combine(_env.WebRootPath, "images", "products");
             if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
-            
+
             string fileName = Guid.NewGuid().ToString() + "_" + file.FileName;
             string filePath = Path.Combine(folder, fileName);
-            
+
             using (var fs = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(fs);
