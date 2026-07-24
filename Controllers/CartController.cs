@@ -9,12 +9,15 @@ using System;
 using Net.payOS;        // Dùng đúng thư viện gốc
 using Net.payOS.Types;  // Dùng đúng thư viện gốc
 
-namespace WebBanVLXD.Controllers {
-    public class CartController : Controller {
+namespace WebBanVLXD.Controllers
+{
+    public class CartController : Controller
+    {
         private readonly AppDbContext _context;
         private readonly Net.payOS.PayOS _payOS; // Tường minh kiểu dữ liệu
 
-        public CartController(AppDbContext context, Net.payOS.PayOS payOS) {
+        public CartController(AppDbContext context, Net.payOS.PayOS payOS)
+        {
             _context = context;
             _payOS = payOS;
         }
@@ -22,19 +25,21 @@ namespace WebBanVLXD.Controllers {
         // ==========================================
         // CÁC HÀM XỬ LÝ GIỎ HÀNG
         // ==========================================
-        private List<CartItem> GetCartItems() {
+        private List<CartItem> GetCartItems()
+        {
             var sessionCart = HttpContext.Session.GetString("Cart");
             if (sessionCart != null) return JsonConvert.DeserializeObject<List<CartItem>>(sessionCart)!;
             return new List<CartItem>();
         }
 
-        private void SaveCartItems(List<CartItem> cart) => 
+        private void SaveCartItems(List<CartItem> cart) =>
             HttpContext.Session.SetString("Cart", JsonConvert.SerializeObject(cart));
 
         public IActionResult Index() => View(GetCartItems());
 
         [HttpPost]
-        public IActionResult AddToCart(string productId, int quantity = 1) {
+        public IActionResult AddToCart(string productId, int quantity = 1)
+        {
             var product = _context.Products.Find(productId);
             if (product == null) return NotFound();
 
@@ -45,10 +50,11 @@ namespace WebBanVLXD.Controllers {
             else cart.Add(new CartItem { Product = product, Quantity = quantity });
 
             SaveCartItems(cart);
-            return RedirectToAction("Index"); 
+            return RedirectToAction("Index");
         }
 
-        public IActionResult Remove(string productId) {
+        public IActionResult Remove(string productId)
+        {
             var cart = GetCartItems();
             cart.RemoveAll(i => i.Product.Id == productId);
             SaveCartItems(cart);
@@ -59,7 +65,8 @@ namespace WebBanVLXD.Controllers {
         // MÀN HÌNH ĐIỀN THÔNG TIN THANH TOÁN
         // ==========================================
         [HttpGet]
-        public IActionResult Checkout() {
+        public IActionResult Checkout()
+        {
             var cart = GetCartItems();
             if (cart.Count == 0) return RedirectToAction("Index");
             return View(cart);
@@ -69,21 +76,35 @@ namespace WebBanVLXD.Controllers {
         // XỬ LÝ ĐẶT HÀNG & GỌI PAYOS
         // ==========================================
         [HttpPost]
-        public async Task<IActionResult> ProcessCheckout(string customerName, string phone, string address, string paymentMethod, string couponCode) {
+        public async Task<IActionResult> ProcessCheckout(string customerName, string phone, string address, string paymentMethod, string couponCode)
+        {
             var cart = GetCartItems();
             if (cart.Count == 0) return RedirectToAction("Index");
 
             decimal totalAmount = cart.Sum(i => i.Product.Price * i.Quantity);
             decimal discountAmount = 0;
 
-            if (!string.IsNullOrEmpty(couponCode)) {
-                var coupon = _context.Coupons.FirstOrDefault(c => c.Code == couponCode && c.IsActive && c.ExpiryDate >= DateTime.Now);
-                if (coupon != null) {
-                    discountAmount = totalAmount * (coupon.DiscountPercent / 100);
+            if (!string.IsNullOrEmpty(couponCode))
+            {
+                var coupon = _context.Coupons.FirstOrDefault(c =>
+                    c.Code == couponCode &&
+                    c.IsActive &&
+                    c.ExpiryDate >= DateTime.Now);
+
+                if (coupon != null)
+                {
+                    discountAmount = coupon.DiscountAmount;
+
+                    // Không cho giảm lớn hơn tổng tiền đơn hàng
+                    if (discountAmount > totalAmount)
+                    {
+                        discountAmount = totalAmount;
+                    }
                 }
             }
 
-            var order = new Order {
+            var order = new Order
+            {
                 UserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
                 CustomerName = customerName,
                 Phone = phone,
@@ -92,8 +113,9 @@ namespace WebBanVLXD.Controllers {
                 PaymentMethod = paymentMethod,
                 CouponCode = couponCode,
                 DiscountAmount = discountAmount,
-                Status = paymentMethod == "BankTransfer" ? "Chờ thanh toán" : "Chờ xử lý", 
-                OrderDetails = cart.Select(i => new OrderDetail {
+                Status = paymentMethod == "BankTransfer" ? "Chờ thanh toán" : "Chờ xử lý",
+                OrderDetails = cart.Select(i => new OrderDetail
+                {
                     ProductId = i.Product.Id,
                     Quantity = i.Quantity,
                     Price = i.Product.Price
@@ -101,11 +123,13 @@ namespace WebBanVLXD.Controllers {
             };
 
             _context.Orders.Add(order);
-            
+
             // Trừ số lượng tồn kho
-            foreach (var item in cart) {
+            foreach (var item in cart)
+            {
                 var product = _context.Products.Find(item.Product.Id);
-                if(product != null) {
+                if (product != null)
+                {
                     product.StockQuantity -= item.Quantity;
                 }
             }
@@ -117,7 +141,7 @@ namespace WebBanVLXD.Controllers {
             if (paymentMethod == "BankTransfer")
             {
                 var domain = $"{Request.Scheme}://{Request.Host}";
-                long orderCode = long.Parse(DateTimeOffset.Now.ToString("yyMMddHHmmss")); 
+                long orderCode = long.Parse(DateTimeOffset.Now.ToString("yyMMddHHmmss"));
 
                 var items = new List<ItemData> {
                     new ItemData("Thanh toan BuildSmart", 1, (int)order.TotalAmount)
@@ -126,7 +150,7 @@ namespace WebBanVLXD.Controllers {
                 var paymentData = new PaymentData(
                     orderCode: orderCode,
                     amount: (int)order.TotalAmount,
-                    description: "Thanh toan VLXD", 
+                    description: "Thanh toan VLXD",
                     items: items,
                     cancelUrl: $"{domain}/Cart/PaymentCallback?orderId={order.Id}&success=false",
                     returnUrl: $"{domain}/Cart/PaymentCallback?orderId={order.Id}&success=true"
