@@ -1,6 +1,8 @@
 @model List<WebBanVLXD.Models.Order>
 @{
     ViewData["Title"] = "Tra cứu & Quản lý đơn hàng";
+    // Lấy danh sách ID sản phẩm đã đánh giá từ ViewBag gửi từ Controller
+    var reviewedIds = ViewBag.ReviewedProducts as List<string> ?? new List<string>();
 }
 
 <div class="container my-5" style="min-height: 60vh;">
@@ -73,10 +75,36 @@
                                                 <ul class="list-unstyled mb-1">
                                                     @if(order.OrderDetails != null) {
                                                         foreach(var item in order.OrderDetails) {
-                                                            <li class="mb-1">
-                                                                <i class="fa-solid fa-caret-right me-2 text-secondary"></i>
-                                                                <strong>@(item.Product?.Name ?? "Sản phẩm đã bị xóa")</strong> 
-                                                                (Số lượng: @item.Quantity) - <span class="text-danger fw-bold">@((item.Price * item.Quantity).ToString("N0")) đ</span>
+                                                            <li class="mb-2 d-flex justify-content-between align-items-center border-bottom pb-2">
+                                                                <div>
+                                                                    <i class="fa-solid fa-caret-right me-2 text-secondary"></i>
+                                                                    <strong>@(item.Product?.Name ?? "Sản phẩm đã bị xóa")</strong> 
+                                                                    <span class="text-muted small">(x@item.Quantity)</span> - 
+                                                                    <span class="text-danger fw-bold">@((item.Price * item.Quantity).ToString("N0")) đ</span>
+                                                                </div>
+
+                                                                @if (order.Status == "Hoàn thành")
+                                                                {
+                                                                    <!-- KIỂM TRA ĐÃ ĐÁNH GIÁ CHƯA -->
+                                                                    @if (reviewedIds.Contains(item.ProductId))
+                                                                    {
+                                                                        <button class="btn btn-sm btn-secondary rounded-pill px-3 opacity-50" disabled style="font-size: 0.7rem;">
+                                                                            <i class="fa-solid fa-check me-1"></i> ĐÃ ĐÁNH GIÁ
+                                                                        </button>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <button class="btn btn-sm btn-orange text-white rounded-pill px-3 shadow-sm" 
+                                                                                style="font-size: 0.7rem;"
+                                                                                data-bs-toggle="modal" 
+                                                                                data-bs-target="#modalReview" 
+                                                                                data-productid="@item.ProductId" 
+                                                                                data-productname="@item.Product?.Name"
+                                                                                data-orderid="@order.Id">
+                                                                            <i class="fa-solid fa-star me-1"></i> ĐÁNH GIÁ
+                                                                        </button>
+                                                                    }
+                                                                }
                                                             </li>
                                                         }
                                                     }
@@ -93,6 +121,74 @@
                     </div>
                 </div>
             }
+            else if (!string.IsNullOrEmpty(Context.Request.Query["id"]))
+            {
+                <div class="text-center py-5">
+                    <i class="fa-solid fa-box-open fs-1 text-muted mb-3"></i>
+                    <h5>Không tìm thấy thông tin đơn hàng này.</h5>
+                    <p class="text-muted small">Vui lòng kiểm tra lại mã đơn hàng trong email hoặc tin nhắn.</p>
+                </div>
+            }
         </div>
     </div>
 </div>
+
+<!-- MODAL NHẬP ĐÁNH GIÁ -->
+<div class="modal fade" id="modalReview" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form asp-action="SubmitReview" method="post">
+                <div class="modal-header bg-orange text-white">
+                    <h6 class="modal-title fw-bold"><i class="fa-solid fa-pen-to-square me-2"></i>Viết đánh giá sản phẩm</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small mb-3 text-muted">Bạn đang đánh giá sản phẩm:</p>
+                    <h6 id="displayProductName" class="fw-bold text-primary mb-4"></h6>
+                    
+                    <input type="hidden" name="productId" id="inputProductId" />
+                    <input type="hidden" name="orderId" id="inputOrderId" />
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Mức độ hài lòng của bạn:</label>
+                        <select name="rating" class="form-select border-orange">
+                            <option value="5">⭐⭐⭐⭐⭐ - Tuyệt vời</option>
+                            <option value="4">⭐⭐⭐⭐ - Rất tốt</option>
+                            <option value="3">⭐⭐⭐ - Bình thường</option>
+                            <option value="2">⭐⭐ - Tạm được</option>
+                            <option value="1">⭐ - Rất tệ</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold">Nội dung nhận xét:</label>
+                        <textarea name="comment" class="form-control border-light-subtle" rows="4" 
+                                  placeholder="Hãy chia sẻ cảm nhận của bạn về chất lượng sản phẩm..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                    <button type="submit" class="btn btn-sm btn-orange text-white fw-bold px-4">GỬI ĐÁNH GIÁ NGAY</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var modalReview = document.getElementById('modalReview')
+        if (modalReview) {
+            modalReview.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget 
+                var productId = button.getAttribute('data-productid')
+                var productName = button.getAttribute('data-productname')
+                var orderId = button.getAttribute('data-orderid')
+
+                document.getElementById('inputProductId').value = productId
+                document.getElementById('inputOrderId').value = orderId
+                document.getElementById('displayProductName').innerText = productName
+            })
+        }
+    </script>
+}
