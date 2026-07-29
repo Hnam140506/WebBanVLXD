@@ -30,7 +30,9 @@ namespace WebBanVLXD.Pages.Product
         
         public int TotalPages { get; set; }
 
-        // Viết hàm chung để tái sử dụng bộ lọc tìm kiếm
+        // ĐỊNH NGHĨA BIẾN NÀY ĐỂ HẾT LỖI GẠCH ĐỎ
+        public bool HasMore { get; set; } 
+
         private IQueryable<WebBanVLXD.Models.Product> GetProductQuery()
         {
             var query = _context.Products.AsQueryable();
@@ -55,28 +57,34 @@ namespace WebBanVLXD.Pages.Product
             return query;
         }
 
-        // Tải trang lần đầu
         public void OnGet()
         {
             var query = GetProductQuery();
-            int pageSize = 12; // Hiển thị 12 sản phẩm mỗi trang như bản thiết kế
-            TotalPages = (int)Math.Ceiling(query.Count() / (double)pageSize);
+            int pageSize = 20; // Hiện 20 cái mỗi lần
+            
+            int totalCount = query.Count();
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
             
             if (PageNumber < 1) PageNumber = 1;
+
+            // Lấy 20 sản phẩm đầu tiên
             Products = query.Skip((PageNumber - 1) * pageSize).Take(pageSize).ToList();
+
+            // Cập nhật HasMore để ẩn/hiện nút Xem thêm
+            HasMore = totalCount > (PageNumber * pageSize);
         }
 
-        // Handler dành riêng cho AJAX Cuộn Vô Hạn
+        // Handler dành riêng cho AJAX bấm nút "Xem thêm"
         public IActionResult OnGetLoadMore(int pageNumber, string category, string sortOrder)
         {
             Category = category;
             SortOrder = sortOrder;
             
             var query = GetProductQuery();
-            int pageSize = 12;
+            int pageSize = 20;
             var products = query.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
 
-            // Trả về thẳng giao diện Partial thay vì Full Page
+            // Trả về Partial View để dán thêm sản phẩm vào trang
             return Partial("_ProductGridPartial", products);
         }
     }

@@ -309,3 +309,35 @@ body {
 .italic { font-style: italic; }
 .x-small { font-size: 0.75rem; }
 .text-orange { color: #f57224; } 
+/* Tùy chỉnh nút Tra cứu đơn hàng trên Top Bar */
+.btn-track-order {
+    background-color: var(--bs-orange); /* Màu cam thương hiệu */
+    color: white !important;
+    padding: 4px 15px;
+    border-radius: 20px; /* Bo tròn dạng viên thuốc */
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.btn-track-order:hover {
+    background-color: #ffffff; /* Khi di chuột vào biến thành màu trắng */
+    color: var(--bs-dark-blue) !important; /* Chữ biến thành màu xanh đậm */
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+/* Thêm icon nhấp nháy nhẹ để thu hút sự chú ý (tùy chọn) */
+.btn-track-order i {
+    animation: pulse-icon 2s infinite;
+}
+
+@keyframes pulse-icon {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}

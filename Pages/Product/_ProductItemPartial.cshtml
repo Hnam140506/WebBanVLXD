@@ -1,0 +1,19 @@
+@model IEnumerable<WebBanVLXD.Models.Product>
+
+@foreach (var item in Model) {
+    <div class="col">
+        <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden bg-white product-card-smart">
+            <div style="height: 180px; background-color: #f8f9fa;">
+                <img src="@(string.IsNullOrEmpty(item.ImageUrl) ? "https://placehold.co/400x300" : item.ImageUrl)" class="w-100 h-100 object-fit-cover">
+            </div>
+            <div class="card-body p-3 d-flex flex-column">
+                <small class="text-muted">@item.Category</small>
+                <h6 class="fw-bold mt-1">@item.Name</h6>
+                <div class="mt-auto">
+                    <div class="text-orange fw-bold fs-5 mb-2">@item.Price.ToString("N0") đ</div>
+                    <a href="/Product/Details/@item.Id" class="btn btn-outline-primary btn-sm w-100 rounded-pill">XEM CHI TIẾT</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}

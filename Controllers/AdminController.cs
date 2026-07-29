@@ -298,5 +298,30 @@ public IActionResult DeleteReview(string id)
             }
             return "/images/products/" + fileName;
         }
+
+        // 1. Xem danh sách tin nhắn
+public IActionResult Messages()
+{
+    var msgs = _context.ContactMessages.OrderByDescending(m => m.CreatedAt).ToList();
+    return View(msgs);
+}
+
+// 2. Đánh dấu đã đọc
+[HttpPost]
+public IActionResult MarkAsRead(string id)
+{
+    var msg = _context.ContactMessages.Find(id);
+    if (msg != null) { msg.IsRead = true; _context.SaveChanges(); }
+    return RedirectToAction("Messages");
+}
+
+// 3. Xóa tin nhắn
+[HttpPost]
+public IActionResult DeleteMessage(string id)
+{
+    var msg = _context.ContactMessages.Find(id);
+    if (msg != null) { _context.ContactMessages.Remove(msg); _context.SaveChanges(); }
+    return RedirectToAction("Messages");
+}
     }
 }

@@ -30,19 +30,23 @@
     <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
 </head>
 
-<body>
+<!-- THÊM CÁC CLASS d-flex flex-column min-vh-100 VÀO THẺ BODY -->
+<body class="d-flex flex-column min-vh-100">
     <!-- TOP BAR -->
-    <div class="top-bar text-white py-2" style="background-color: var(--bs-dark-blue); font-size: 0.85rem;">
-        <div class="container d-flex justify-content-between align-items-center">
-            <div>
-                <span class="me-4"><i class="fa-solid fa-phone me-1"></i> Hotline: 1900 123 456</span>
-                <span><i class="fa-solid fa-envelope me-1"></i> contact@buildsmart.vn</span>
-            </div>
-            <div>
-                <a href="/Order/Track">Tra cứu đơn hàng</a>
-            </div>
+<div class="top-bar text-white py-2" style="background-color: var(--bs-dark-blue); font-size: 0.85rem;">
+    <div class="container d-flex justify-content-between align-items-center">
+        <div>
+            <span class="me-4"><i class="fa-solid fa-phone me-1"></i> Hotline: 1900 123 456</span>
+            <span class="d-none d-sm-inline"><i class="fa-solid fa-envelope me-1"></i> contact@buildsmart.vn</span>
+        </div>
+        <div>
+            <!-- LÀM NỔI BẬT TRA CỨU ĐƠN HÀNG TẠI ĐÂY -->
+            <a href="/Order/Track" class="btn-track-order">
+                <i class="fa-solid fa-magnifying-glass me-1"></i> Tra cứu đơn hàng
+            </a>
         </div>
     </div>
+</div>
 
     <!-- HEADER & NAVBAR -->
     <header class="bg-white py-3 sticky-top shadow-sm">
@@ -72,7 +76,6 @@
             </nav>
 
             <!-- Search -->
-            <!-- Search trong _Layout.cshtml -->
             <div class="d-none d-md-block" style="width: 250px;">
                 <form class="input-group" action="/" method="get"> <!-- Action trỏ về trang chủ -->
                     <span class="input-group-text bg-light border-0 rounded-start-pill ps-3">
@@ -103,7 +106,6 @@
                             <li><span class="dropdown-item-text text-muted small">Chào, <b>@User.Identity.Name</b></span></li>
                             <li><hr class="dropdown-divider"></li>
                             
-                            @* LINK HỒ SƠ MỚI *@
                             <li><a class="dropdown-item" href="/Account/Profile"><i class="fa-solid fa-address-card me-2"></i>Thông tin cá nhân</a></li>
                             
                             @if (User.IsInRole("Admin"))
@@ -128,12 +130,13 @@
         </div>
     </header>
 
-    <main role="main">
+    <!-- THÊM CLASS flex-grow-1 VÀO THẺ MAIN -->
+    <main role="main" class="flex-grow-1">
         @RenderBody()
     </main>
 
     <!-- FOOTER -->
-    <footer class="pt-5 pb-3 mt-5 footer-custom text-white" style="background-color: var(--bs-dark-blue);">
+    <footer class="pt-5 pb-3 footer-custom text-white" style="background-color: var(--bs-dark-blue);">
         <div class="container">
             <div class="row g-4 mb-4">
                 <div class="col-lg-3 col-md-6">

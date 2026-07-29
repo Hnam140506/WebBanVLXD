@@ -1,0 +1,57 @@
+@model IEnumerable<WebBanVLXD.Models.ContactMessage>
+@{
+    ViewData["Title"] = "Quản lý Liên hệ";
+    Layout = "_AdminLayout";
+}
+
+<div class="card card-admin p-4 shadow-sm border-0">
+    <h5 class="fw-bold mb-4"><i class="fa-solid fa-envelope-open-text me-2 text-primary"></i>Tin nhắn từ khách hàng</h5>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Khách hàng</th>
+                    <th>Vấn đề</th>
+                    <th>Nội dung</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model)
+                {
+                    <tr class="@(m.IsRead ? "" : "table-warning")">
+                        <td>
+                            <b>@m.FullName</b><br />
+                            <small class="text-muted">@m.Phone</small><br />
+                            <small class="text-muted">@m.Email</small>
+                        </td>
+                        <td><span class="badge bg-info text-dark">@m.Subject</span><br />
+                            <small class="x-small text-muted">@m.CreatedAt.ToString("dd/MM HH:mm")</small>
+                        </td>
+                        <td style="max-width: 300px;">
+                            <div class="small text-truncate-2">@m.Message</div>
+                        </td>
+                        <td>
+                            @if (m.IsRead) { <span class="badge bg-success">Đã xem</span> }
+                            else { <span class="badge bg-danger">Mới</span> }
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <form asp-action="MarkAsRead" method="post">
+                                    <input type="hidden" name="id" value="@m.Id" />
+                                    <button class="btn btn-sm btn-outline-primary" title="Đã xem"><i class="fa-solid fa-check"></i></button>
+                                </form>
+                                <form asp-action="DeleteMessage" method="post" onsubmit="return confirm('Xóa tin nhắn này?')">
+                                    <input type="hidden" name="id" value="@m.Id" />
+                                    <button class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
