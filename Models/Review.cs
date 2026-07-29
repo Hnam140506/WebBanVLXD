@@ -10,5 +10,7 @@ namespace WebBanVLXD.Models
         public int Rating { get; set; } // 1-5 sao
         public string Comment { get; set; } = null!;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public string? AdminReply { get; set; } 
+        public DateTime? ReplyDate { get; set; }
     }
 }
