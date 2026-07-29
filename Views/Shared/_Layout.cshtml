@@ -72,13 +72,14 @@
             </nav>
 
             <!-- Search -->
+            <!-- Search trong _Layout.cshtml -->
             <div class="d-none d-md-block" style="width: 250px;">
-                <form class="input-group" asp-controller="Home" asp-action="Search" method="get">
+                <form class="input-group" action="/" method="get"> <!-- Action trỏ về trang chủ -->
                     <span class="input-group-text bg-light border-0 rounded-start-pill ps-3">
                         <i class="fa-solid fa-magnifying-glass text-muted"></i>
                     </span>
                     <input type="text" name="query" class="form-control bg-light border-0 rounded-end-pill shadow-none"
-                           placeholder="Tìm kiếm..." style="font-size: 0.9rem;">
+                        placeholder="Tìm kiếm sản phẩm..." style="font-size: 0.9rem;" value="@ViewBag.Query">
                 </form>
             </div>
 

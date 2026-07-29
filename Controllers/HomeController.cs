@@ -18,11 +18,14 @@ namespace WebBanVLXD.Controllers
         {
             var products = _context.Products.AsQueryable();
 
-            // Lọc theo tìm kiếm
+            // Lọc theo tìm kiếm (Tên, Thương hiệu hoặc Danh mục)
             if (!string.IsNullOrEmpty(query))
             {
-                products = products.Where(p => p.Name.Contains(query) || p.Description.Contains(query));
-                ViewBag.Query = query;
+                string q = query.ToLower();
+                products = products.Where(p => p.Name.ToLower().Contains(q)
+                                            || p.Brand.ToLower().Contains(q)
+                                            || p.Category.ToLower().Contains(q));
+                ViewBag.Query = query; // Để hiện lại chữ đã gõ trong ô tìm kiếm
             }
 
             // Lọc theo danh mục từ View Component
@@ -32,10 +35,7 @@ namespace WebBanVLXD.Controllers
                 ViewBag.Category = category;
             }
 
-            // Sắp xếp mới nhất lên đầu
-            products = products.OrderByDescending(p => p.CreatedAt);
-
-            return View(products.ToList());
+            return View(products.OrderByDescending(p => p.CreatedAt).ToList());
         }
 
         public IActionResult Search(string query)

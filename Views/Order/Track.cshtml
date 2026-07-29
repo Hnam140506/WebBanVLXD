@@ -84,27 +84,29 @@
                                                                 </div>
 
                                                                 @if (order.Status == "Hoàn thành")
+                                                            {
+                                                                // Lấy danh sách các cặp Order_Product đã đánh giá
+                                                                var reviewedKeys = ViewBag.ReviewedKeys as List<string> ?? new List<string>();
+                                                                string currentKey = order.Id + "_" + item.ProductId;
+
+                                                                if (reviewedKeys.Contains(currentKey))
                                                                 {
-                                                                    <!-- KIỂM TRA ĐÃ ĐÁNH GIÁ CHƯA -->
-                                                                    @if (reviewedIds.Contains(item.ProductId))
-                                                                    {
-                                                                        <button class="btn btn-sm btn-secondary rounded-pill px-3 opacity-50" disabled style="font-size: 0.7rem;">
-                                                                            <i class="fa-solid fa-check me-1"></i> ĐÃ ĐÁNH GIÁ
-                                                                        </button>
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        <button class="btn btn-sm btn-orange text-white rounded-pill px-3 shadow-sm" 
-                                                                                style="font-size: 0.7rem;"
-                                                                                data-bs-toggle="modal" 
-                                                                                data-bs-target="#modalReview" 
-                                                                                data-productid="@item.ProductId" 
-                                                                                data-productname="@item.Product?.Name"
-                                                                                data-orderid="@order.Id">
-                                                                            <i class="fa-solid fa-star me-1"></i> ĐÁNH GIÁ
-                                                                        </button>
-                                                                    }
+                                                                    <button class="btn btn-sm btn-secondary rounded-pill px-3 opacity-50" disabled style="font-size: 0.7rem;">
+                                                                        <i class="fa-solid fa-check me-1"></i> ĐÃ ĐÁNH GIÁ
+                                                                    </button>
                                                                 }
+                                                                else
+                                                                {
+                                                                    <button class="btn btn-sm btn-orange text-white rounded-pill px-3 shadow-sm" 
+                                                                            style="font-size: 0.7rem;"
+                                                                            data-bs-toggle="modal" data-bs-target="#modalReview" 
+                                                                            data-productid="@item.ProductId" 
+                                                                            data-productname="@item.Product?.Name"
+                                                                            data-orderid="@order.Id">
+                                                                        <i class="fa-solid fa-star me-1"></i> ĐÁNH GIÁ
+                                                                    </button>
+                                                                }
+                                                            }
                                                             </li>
                                                         }
                                                     }

@@ -12,5 +12,6 @@ namespace WebBanVLXD.Models
         // Hai cột này mới thêm vào:
         public string? AdminReply { get; set; } 
         public DateTime? ReplyDate { get; set; }
+        public string? OrderId { get; set; } 
     }
 }

@@ -112,185 +112,160 @@
                 <div class="col-12">
                     <ul class="nav nav-tabs custom-tabs" id="myTab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#desc">Mô tả sản
-                                phẩm</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#reviews">Đánh giá
-                                    (@Model.Product.Reviews.Count)</button>
-                                </li>
-                            </ul>
-                            <div class="tab-content p-4 bg-white shadow-sm rounded-bottom" id="myTabContent">
-                                <!-- Tab Mô tả -->
-                                <div class="tab-pane fade show active" id="desc">
-                                    @if (!string.IsNullOrEmpty(Model.Product.Description))
-                                    {
-                                        @Html.Raw(Model.Product.Description.Replace("\n", "<br>"))
-                                    }
-                                    else
-                                    {
-                                        <p class="text-muted">Đang cập nhật nội dung mô tả...</p>
-                                    }
-                                </div>
+                            <button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#desc">Mô tả sản phẩm</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#reviews">Đánh giá (@Model.Product.Reviews.Count)</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content p-4 bg-white shadow-sm rounded-bottom" id="myTabContent">
+                        <!-- Tab Mô tả -->
+                        <div class="tab-pane fade show active" id="desc">
+                            @if (!string.IsNullOrEmpty(Model.Product.Description))
+                            {
+                                @Html.Raw(Model.Product.Description.Replace("\n", "<br>"))
+                            }
+                            else
+                            {
+                                <p class="text-muted">Đang cập nhật nội dung mô tả...</p>
+                            }
+                        </div>
 
-                                <!-- Tab Đánh giá -->
-                                <div class="tab-pane fade" id="reviews">
-                                    <!-- DÁN ĐOẠN NÀY VÀO ĐỂ XEM LỖI NẰM Ở ĐÂU -->
-                                    <div class="alert alert-secondary">
-                                        <b>Dữ liệu kiểm tra:</b>
-                                        Hệ thống tìm thấy <b>@ViewData["Debug_Purchased"]</b> đơn hàng Hoàn thành của bạn
-                                        và bạn đã viết <b>@ViewData["Debug_Review"]</b> đánh giá.
-                                    </div>
+                        <!-- Tab Đánh giá -->
+                        <div class="tab-pane fade" id="reviews">
 
-                                    @if (Model.CanReview)
-                                    {
-                                        <div class="card mb-4 shadow-sm border-0 bg-light p-3">
-                                            <div class="card-body">
-                                                <h5 class="fw-bold mb-3">Viết đánh giá của bạn</h5>
-                                                <!-- Bắn về Handler OnPostAddReview trong PageModel -->
-                                                <!-- Đã thêm asp-route-id vào thẻ form -->
-                                                <!-- BẮT BUỘC phải có asp-page-handler="AddReview" để trỏ đúng vào hàm OnPostAddReviewAsync -->
-                                                <!-- CÁCH SỬA: Thêm asp-route-id="@Model.Product.Id" vào thẻ form -->
-                                                <!-- Dọn dẹp thẻ form lại đơn giản như thế này -->
-                                                <form method="post">
+                            <!-- [THÊM MỚI]: THÔNG BÁO ĐIỀU HƯỚNG SANG TRA CỨU ĐƠN HÀNG -->
+                            <div class="alert alert-warning shadow-sm border-0 rounded-3 mb-4">
+                                <i class="fa-solid fa-circle-info me-2"></i>
+                                Để đánh giá sản phẩm, quý khách vui lòng vào mục 
+                                <a href="/Order/Track" class="fw-bold text-decoration-none">Tra cứu đơn hàng</a> 
+                                và chọn đơn hàng đã <b>Hoàn thành</b> để gửi nhận xét.
+                            </div>
 
-                                                    @Html.AntiForgeryToken()
+                            @* --- [CODE CŨ ĐƯỢC GIỮ LẠI - ĐÃ COMMENT LẠI ĐỂ KHÔNG HIỂN THỊ TRÊN WEB] ---
+                            <div class="alert alert-secondary">
+                                <b>Dữ liệu kiểm tra:</b>
+                                Hệ thống tìm thấy <b>@ViewData["Debug_Purchased"]</b> đơn hàng Hoàn thành của bạn
+                                và bạn đã viết <b>@ViewData["Debug_Review"]</b> đánh giá.
+                            </div>
 
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Mức độ hài lòng:</label>
-                                                        <select name="rating" class="form-select w-auto">
-                                                            <option value="5">⭐⭐⭐⭐⭐ - Tuyệt vời</option>
-                                                            <option value="4">⭐⭐⭐⭐ - Rất tốt</option>
-                                                            <option value="3">⭐⭐⭐ - Bình thường</option>
-                                                            <option value="2">⭐⭐ - Tạm được</option>
-                                                            <option value="1">⭐ - Rất tệ</option>
-                                                        </select>
-                                                    </div>
-
-                                                    <div class="mb-3">
-                                                        <textarea name="comment" class="form-control" rows="3"
-                                                                  placeholder="Chia sẻ cảm nhận của bạn về chất lượng sản phẩm..."
-                                                                  required></textarea>
-                                                    </div>
-
-                                                    <!-- Xóa thuộc tính asp-page-handler ở nút submit -->
-                                                    <button type="submit" class="btn btn-primary">Gửi đánh giá</button>
-                                                </form>
+                            @if (Model.CanReview)
+                            {
+                                <div class="card mb-4 shadow-sm border-0 bg-light p-3">
+                                    <div class="card-body">
+                                        <h5 class="fw-bold mb-3">Viết đánh giá của bạn</h5>
+                                        <form method="post">
+                                            @Html.AntiForgeryToken()
+                                            <div class="mb-3">
+                                                <label class="form-label">Mức độ hài lòng:</label>
+                                                <select name="rating" class="form-select w-auto">
+                                                    <option value="5">⭐⭐⭐⭐⭐ - Tuyệt vời</option>
+                                                    <option value="4">⭐⭐⭐⭐ - Rất tốt</option>
+                                                    <option value="3">⭐⭐⭐ - Bình thường</option>
+                                                    <option value="2">⭐⭐ - Tạm được</option>
+                                                    <option value="1">⭐ - Rất tệ</option>
+                                                </select>
                                             </div>
-                                        </div>
-                                    }
-                                    else if (User.Identity != null && User.Identity.IsAuthenticated)
-                                    {
-                                        <div class="alert alert-info">
-                                            <i class="fa-solid fa-circle-info me-2"></i> Bạn cần mua sản phẩm này và đơn hàng được giao
-                                            thành công để có thể đánh giá (hoặc bạn đã sử dụng hết lượt đánh giá tương ứng với số đơn hàng).
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <div class="alert alert-warning">
-                                            Vui lòng <a href="/Account/Login">đăng nhập</a> và mua hàng để được để lại đánh giá.
-                                        </div>
-                                    }
+                                            <div class="mb-3">
+                                                <textarea name="comment" class="form-control" rows="3"
+                                                          placeholder="Chia sẻ cảm nhận của bạn về chất lượng sản phẩm..."
+                                                          required></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">Gửi đánh giá</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                            *@
 
-                                    <!-- Danh sách Reviews -->
-                                    <div class="review-list mt-4">
-                                        @if (Model.Product.Reviews.Any())
-                                        {
-                                            @foreach (var review in Model.Product.Reviews.OrderByDescending(r => r.CreatedAt))
+                            <!-- Danh sách Reviews cũ và Phản hồi Admin (VẪN HIỂN THỊ) -->
+                            <div class="review-list mt-4">
+                                @if (Model.Product.Reviews.Any())
+                                {
+                                    @foreach (var review in Model.Product.Reviews.OrderByDescending(r => r.CreatedAt))
+                                    {
+                                        <div class="border-bottom pb-3 mb-3">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <strong>
+                                                    @review.UserName
+                                                    <span class="badge bg-success ms-2 fw-normal">
+                                                        <i class="fa-solid fa-check me-1"></i> Đã mua hàng
+                                                    </span>
+                                                </strong>
+                                                <span class="text-muted small">@review.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                                            </div>
+                                            <div class="text-warning small mb-2">
+                                                @for (int i = 1; i <= 5; i++)
+                                                {
+                                                    <i class="fa-@(i <= review.Rating ? "solid" : "regular") fa-star"></i>
+                                                }
+                                            </div>
+
+                                            <p class="mb-2 text-dark">@review.Comment</p>
+
+                                            @if (!string.IsNullOrEmpty(review.AdminReply))
                                             {
-                                                <div class="border-bottom pb-3 mb-3">
-                                                    <div class="d-flex justify-content-between mb-1">
-                                                        <strong>
-                                                            @review.UserName
-                                                            <span class="badge bg-success ms-2 fw-normal">
-                                                                <i class="fa-solid fa-check me-1"></i> Đã mua hàng
-                                                            </span>
-                                                        </strong>
-                                                        <span class="text-muted small">@review.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
-                                                    </div>
-                                                    <div class="text-warning small mb-2">
-                                                        @for (int i = 1; i <= 5; i++)
-                                                        {
-                                                            <i class="fa-@(i <= review.Rating ? "solid" : "regular") fa-star"></i>
-                                                        }
-                                                    </div>
-
-                                                    <!-- Nội dung bình luận của khách -->
-                                                    <p class="mb-2 text-dark">@review.Comment</p>
-
-                                                    <!-- PHẦN HIỂN THỊ PHẢN HỒI CỦA ADMIN (CHỈ HIỆN NẾU CÓ) -->
-                                                    @if (!string.IsNullOrEmpty(review.AdminReply))
-                                                    {
-                                                        <div
-                                                            class="ms-4 ms-md-5 ps-3 border-start border-4 border-warning bg-light p-3 rounded-3 shadow-sm">
-                                                            <div class="d-flex align-items-center mb-1">
-                                                                <i class="fa-solid fa-store text-orange me-2"></i>
-                                                                <strong class="text-dark small text-uppercase" style="letter-spacing: 0.5px;">Phản
-                                                                    hồi từ BuildSmart</strong>
-                                                                    @if (review.ReplyDate != null)
-                                                                    {
-                                                                        <span class="text-muted ms-auto"
-                                                                              style="font-size: 0.7rem;">@review.ReplyDate?.ToString("dd/MM/yyyy")</span>
-                                                                    }
-                                                                </div>
-                                                                <div class="text-muted small" style="font-style: italic; line-height: 1.5;">
-                                                                    @review.AdminReply
-                                                                </div>
-                                                            </div>
-                                                        }
+                                                <div class="ms-4 ms-md-5 ps-3 border-start border-4 border-warning bg-light p-3 rounded-3 shadow-sm">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <i class="fa-solid fa-store text-orange me-2"></i>
+                                                        <strong class="text-dark small text-uppercase" style="letter-spacing: 0.5px;">Phản hồi từ BuildSmart</strong>
+                                                            @if (review.ReplyDate != null)
+                                                            {
+                                                                <span class="text-muted ms-auto" style="font-size: 0.7rem;">@review.ReplyDate?.ToString("dd/MM/yyyy")</span>
+                                                            }
+                                                        </div>
+                                                        <div class="text-muted small" style="font-style: italic; line-height: 1.5;">
+                                                            @review.AdminReply
+                                                        </div>
                                                     </div>
                                                 }
-                                            }
-                                else
-                                            {
-                                                <p class="text-muted text-center py-4">Chưa có đánh giá nào cho sản phẩm này.</p>
-                                            }
-                                        </div>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted text-center py-4">Chưa có đánh giá nào cho sản phẩm này.</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                                        <script>
-                                                                function updateSelection(radio) {
-                                                                    // Cập nhật giá và tồn kho
-                                                                    document.getElementById('price').innerText = parseFloat(radio.dataset.price).toLocaleString() + " đ";
+            <script>
+                function updateSelection(radio) {
+                    document.getElementById('price').innerText = parseFloat(radio.dataset.price).toLocaleString() + " đ";
+                    const stock = parseInt(radio.dataset.stock);
+                    const stockEl = document.getElementById('stock');
+                    const buyNowBtn = document.getElementById('buyNow');
+                    const addToCartBtn = document.getElementById('addToCart');
+                    const qtyInput = document.getElementById('quantityInput');
 
-                                                                    const stock = parseInt(radio.dataset.stock);
-                                                                    const stockEl = document.getElementById('stock');
-                                                                    const buyNowBtn = document.getElementById('buyNow');
-                                                                    const addToCartBtn = document.getElementById('addToCart');
-                                                                    const qtyInput = document.getElementById('quantityInput');
+                    if (stock > 0) {
+                        stockEl.innerHTML = `<span class="text-success">Còn hàng: ${stock}</span>`;
+                        buyNowBtn.disabled = false;
+                        addToCartBtn.disabled = false;
+                        qtyInput.max = stock;
+                        if (parseInt(qtyInput.value) > stock) { qtyInput.value = stock; }
+                    } else {
+                        stockEl.innerHTML = `<span class="text-danger">Hết hàng</span>`;
+                        buyNowBtn.disabled = true;
+                        addToCartBtn.disabled = true;
+                        qtyInput.max = 1;
+                    }
 
-                                                                    if (stock > 0) {
-                                                                        stockEl.innerHTML = `<span class="text-success">Còn hàng: ${stock}</span>`;
-                                                                        buyNowBtn.disabled = false;
-                                                                        addToCartBtn.disabled = false;
-                                                                        qtyInput.max = stock;
-
-                                                                        if (parseInt(qtyInput.value) > stock) {
-                                                                            qtyInput.value = stock;
-                                                                        }
-                                                                    } else {
-                                                                        stockEl.innerHTML = `<span class="text-danger">Hết hàng</span>`;
-                                                                        buyNowBtn.disabled = true;
-                                                                        addToCartBtn.disabled = true;
-                                                                        qtyInput.max = 1;
-                                                                    }
-
-                                                                    // TÍNH NĂNG CHUYỂN ẢNH KHI CLICK VÀO PHIÊN BẢN
-                                                                    const imgUrl = radio.dataset.img;
-                                                                    if (imgUrl && imgUrl.trim() !== '') {
-                                                                        // Lấy thẻ <img> của slide đầu tiên trong carousel
-                                                                        const firstSlideImg = document.querySelector('#slider .carousel-inner .carousel-item:first-child img');
-                                                                        if (firstSlideImg) {
-                                                                            // Thay đổi ảnh slide đầu tiên bằng ảnh của phiên bản
-                                                                            firstSlideImg.src = imgUrl;
-
-                                                                            // Kích hoạt Bootstrap Carousel quay về slide số 0
-                                                                            const carouselElement = document.getElementById('slider');
-                                                                            if (window.bootstrap && bootstrap.Carousel) {
-                                                                                const bsCarousel = bootstrap.Carousel.getInstance(carouselElement) || new bootstrap.Carousel(carouselElement);
-                                                                                bsCarousel.to(0);
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                        </script>
+                    const imgUrl = radio.dataset.img;
+                    if (imgUrl && imgUrl.trim() !== '') {
+                        const firstSlideImg = document.querySelector('#slider .carousel-inner .carousel-item:first-child img');
+                        if (firstSlideImg) {
+                            firstSlideImg.src = imgUrl;
+                            const carouselElement = document.getElementById('slider');
+                            if (window.bootstrap && bootstrap.Carousel) {
+                                const bsCarousel = bootstrap.Carousel.getInstance(carouselElement) || new bootstrap.Carousel(carouselElement);
+                                bsCarousel.to(0);
+                            }
+                        }
+                    }
+                }
+            </script>

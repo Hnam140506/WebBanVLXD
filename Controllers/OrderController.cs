@@ -38,14 +38,15 @@ namespace WebBanVLXD.Controllers
                 // ÉP BUỘC: Chỉ lấy những đơn hàng thuộc về User này
                 query = query.Where(o => o.UserId == userId);
 
-                // --- MỚI: LẤY DANH SÁCH ID SẢN PHẨM MÀ USER NÀY ĐÃ ĐÁNH GIÁ ---
-                var reviewedProductIds = _context.Reviews
+                // --- CẬP NHẬT LOGIC KIỂM TRA ĐÁNH GIÁ THEO TỪNG ĐƠN HÀNG ---
+                // Lấy danh sách các cặp chuỗi kết hợp "MãĐơnHàng_MãSảnPhẩm" đã được đánh giá
+                var reviewedKeys = _context.Reviews
                     .Where(r => r.UserName == userName)
-                    .Select(r => r.ProductId)
+                    .Select(r => r.OrderId + "_" + r.ProductId) 
                     .ToList();
 
-                // Gửi danh sách này sang View để kiểm tra ẩn/hiện nút Đánh giá
-                ViewBag.ReviewedProducts = reviewedProductIds;
+                // Gửi danh sách "Khóa" này sang View
+                ViewBag.ReviewedKeys = reviewedKeys;
             }
             else
             {
@@ -75,46 +76,49 @@ namespace WebBanVLXD.Controllers
         // POST: /Order/SubmitReview
         [HttpPost]
         [Authorize] 
-        public async Task<IActionResult> SubmitReview(string productId, int rating, string comment)
+        public async Task<IActionResult> SubmitReview(string productId, string orderId, int rating, string comment)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var userName = User.Identity?.Name ?? "Khách hàng";
 
-            // 1. Kiểm tra xem đơn hàng đã "Hoàn thành" và khách thực sự đã mua sản phẩm này chưa
+            // 1. Kiểm tra xem đơn hàng cụ thể này có thuộc về User và đã "Hoàn thành" chưa
             var hasPurchased = await _context.Orders
                 .AnyAsync(o => o.UserId == userId
+                          && o.Id == orderId
                           && o.Status == "Hoàn thành"
                           && o.OrderDetails.Any(od => od.ProductId == productId));
 
             if (!hasPurchased)
             {
-                return BadRequest("Bạn chỉ có thể đánh giá sản phẩm trong đơn hàng đã hoàn thành.");
+                return BadRequest("Bạn chỉ có thể đánh giá sản phẩm trong đơn hàng của chính mình đã hoàn thành.");
             }
 
-            // 2. --- MỚI: KIỂM TRA XEM NGƯỜI DÙNG ĐÃ ĐÁNH GIÁ SẢN PHẨM NÀY CHƯA (CHẶN TRÙNG LẶP) ---
+            // 2. KIỂM TRA XEM SẢN PHẨM TRONG ĐƠN HÀNG NÀY ĐÃ ĐƯỢC ĐÁNH GIÁ CHƯA
             var isAlreadyReviewed = await _context.Reviews
-                .AnyAsync(r => r.ProductId == productId && r.UserName == userName);
+                .AnyAsync(r => r.OrderId == orderId && r.ProductId == productId && r.UserName == userName);
 
             if (isAlreadyReviewed)
             {
-                // Nếu đã đánh giá rồi thì không lưu nữa, đẩy về trang Track luôn
-                return RedirectToAction("Track");
+                // Nếu đã đánh giá cho đơn này rồi thì quay về trang tra cứu luôn, không lưu đè
+                return RedirectToAction("Track", new { id = orderId });
             }
 
-            // 3. Lưu đánh giá mới vào Database
+            // 3. Lưu đánh giá mới vào Database (Có lưu kèm OrderId)
             var review = new Review
             {
                 ProductId = productId,
+                OrderId = orderId, // QUAN TRỌNG: Lưu mã đơn hàng vào bảng Review
                 UserName = userName,
                 Rating = rating,
                 Comment = comment,
                 CreatedAt = DateTime.Now
             };
 
-            _context.Reviews.Add(review);
+           _context.Reviews.Add(review);
             await _context.SaveChangesAsync();
 
-            // 4. Quay lại trang tra cứu đơn hàng
+            // SỬA DÒNG NÀY: Bỏ phần 'new { id = orderId }' đi
+            // Thay vì quay về 1 đơn, ta quay về danh sách tổng quát
             return RedirectToAction("Track");
         }
     }
