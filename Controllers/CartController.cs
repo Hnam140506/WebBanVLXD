@@ -218,5 +218,31 @@ namespace WebBanVLXD.Controllers
                 return RedirectToAction("Index");
             }
         }
+        // ==========================================
+        // TÍNH NĂNG AJAX & MINI CART
+        // ==========================================
+        [HttpPost]
+        public IActionResult AddToCartAjax(string productId, int quantity = 1)
+        {
+            var product = _context.Products.Find(productId);
+            if (product == null) return Json(new { success = false, message = "Không tìm thấy sản phẩm!" });
+
+            var cart = GetCartItems();
+            var item = cart.FirstOrDefault(i => i.Product.Id == productId);
+
+            if (item != null) item.Quantity += quantity;
+            else cart.Add(new CartItem { Product = product, Quantity = quantity });
+
+            SaveCartItems(cart);
+
+            return Json(new { success = true, message = $"Đã thêm {product.Name} vào giỏ hàng!", cartCount = cart.Sum(i => i.Quantity) });
+        }
+
+        [HttpGet]
+        public IActionResult GetMiniCart()
+        {
+            var cart = GetCartItems();
+            return PartialView("_MiniCart", cart);
+        }
     }
 }

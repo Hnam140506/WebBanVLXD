@@ -28,6 +28,26 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
+    <style>
+        /* CSS cho dropdown Mini Cart tự động mở khi hover */
+        @@media (min-width: 992px) {
+            .cart-dropdown:hover .dropdown-menu {
+                display: block;
+                margin-top: 0;
+                animation: fadeIn 0.2s ease-in-out;
+            }
+        }
+        @@keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Thêm phần này để giỏ hàng nảy lên mượt mà */
+        #cartDropdownTrigger {
+            display: inline-block;
+            transition: transform 0.2s ease-in-out;
+        }
+    </style>
 </head>
 
 <!-- THÊM CÁC CLASS d-flex flex-column min-vh-100 VÀO THẺ BODY -->
@@ -88,11 +108,22 @@
 
             <!-- User & Cart Icons -->
             <div class="d-flex align-items-center gap-4">
-                <a href="/Cart" class="position-relative text-dark text-decoration-none">
-                    <i class="fa-solid fa-cart-shopping fs-5"></i>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-orange text-white"
-                          style="font-size: 0.65rem; padding: 0.35em 0.5em;">@cartCount</span>
-                </a>
+                <!-- User & Cart Icons -->
+            <div class="d-flex align-items-center gap-4">
+                
+                <!-- BẮT ĐẦU: MINI CART THAY THẾ ICON CŨ -->
+                <div class="dropdown cart-dropdown d-inline-block">
+                    <a href="/Cart" class="position-relative text-dark text-decoration-none py-2" id="cartDropdownTrigger">
+                        <i class="fa-solid fa-cart-shopping fs-5"></i>
+                        <span id="global-cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-orange text-white"
+                              style="font-size: 0.65rem; padding: 0.35em 0.5em;">@cartCount</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-0 rounded-4 mt-2" style="width: 320px;" id="miniCartContent">
+                        <!-- Nội dung mini cart sẽ được load qua AJAX vào đây -->
+                        <div class="text-center p-3 text-muted small"><div class="spinner-border spinner-border-sm text-orange"></div> Đang tải...</div>
+                    </div>
+                </div>
+                <!-- KẾT THÚC: MINI CART -->
 
                 @if (User.Identity != null && User.Identity.IsAuthenticated)
                 {
@@ -174,6 +205,47 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
     @await RenderSectionAsync("Scripts", required: false)
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
+        <div id="cartToast" class="toast align-items-center text-white bg-success border-0 shadow-lg rounded-3" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body fw-bold">
+                    <i class="fa-solid fa-circle-check me-2"></i> <span id="toastMessage">Sản phẩm đã được thêm vào giỏ!</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Hàm nạp Mini Cart
+        function loadMiniCart() {
+            $.get('/Cart/GetMiniCart', function (data) {
+                $('#miniCartContent').html(data);
+            });
+        }
+
+        // Nạp Mini Cart lần đầu khi load trang
+        $(document).ready(function () {
+            loadMiniCart();
+        });
+
+        // Hàm gọi AJAX chung để thêm vào giỏ
+        function addToCartAjax(productId, quantity) {
+            $.post('/Cart/AddToCartAjax', { productId: productId, quantity: quantity }, function (res) {
+                if (res.success) {
+                    $('#global-cart-count').text(res.cartCount);
+                    $('#toastMessage').text(res.message);
+                    var toast = new bootstrap.Toast(document.getElementById('cartToast'));
+                    toast.show();
+                    loadMiniCart();
+                } else {
+                    alert(res.message);
+                }
+            });
+        }
+    </script>
 </body>
 
 </html>

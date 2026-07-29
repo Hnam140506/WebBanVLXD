@@ -1,0 +1,37 @@
+@model List<WebBanVLXD.Models.CartItem>
+
+<div class="p-3">
+    @if (Model == null || Model.Count == 0)
+    {
+        <div class="text-center text-muted py-3">
+            <i class="fa-solid fa-cart-shopping fs-3 mb-2 opacity-50"></i>
+            <p class="mb-0 small">Chưa có sản phẩm nào.</p>
+        </div>
+    }
+    else
+    {
+        <h6 class="fw-bold mb-3" style="color: var(--bs-dark-blue);">Sản phẩm mới thêm</h6>
+        <div style="max-height: 250px; overflow-y: auto; overflow-x: hidden;">
+            @foreach (var item in Model.OrderByDescending(x => x.Product.CreatedAt).Take(5))
+            {
+                <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+                    <img src="@item.Product.ImageUrl" style="width: 45px; height: 45px;" class="object-fit-cover rounded me-3 shadow-sm" alt="img">
+                    <div class="flex-grow-1 text-truncate">
+                        <div class="text-truncate small fw-bold" title="@item.Product.Name">@item.Product.Name</div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <span class="text-orange small fw-bold">@item.Product.Price.ToString("N0") đ</span>
+                            <span class="text-muted small">x @item.Quantity</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="mt-3 text-center">
+            <div class="d-flex justify-content-between mb-2">
+                <span class="small text-muted">Tổng cộng:</span>
+                <span class="fw-bold text-orange">@Model.Sum(x => x.Product.Price * x.Quantity).ToString("N0") đ</span>
+            </div>
+            <a href="/Cart" class="btn btn-orange w-100 text-white fw-bold py-2 rounded-pill shadow-sm">Xem Giỏ Hàng</a>
+        </div>
+    }
+</div>
