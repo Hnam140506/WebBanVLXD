@@ -232,8 +232,8 @@
         });
 
         // Hàm gọi AJAX chung để thêm vào giỏ
-        function addToCartAjax(productId, quantity) {
-            $.post('/Cart/AddToCartAjax', { productId: productId, quantity: quantity }, function (res) {
+        function addToCartAjax(productId, quantity, variantId = null) {
+            $.post('/Cart/AddToCartAjax', { productId: productId, quantity: quantity, variantId: variantId }, function (res) {
                 if (res.success) {
                     $('#global-cart-count').text(res.cartCount);
                     $('#toastMessage').text(res.message);

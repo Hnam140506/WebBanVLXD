@@ -278,7 +278,7 @@
                 let form = $(this).closest('form');
                 let productId = form.find('input[name="productId"]').val();
                 let qty = form.find('input[name="quantity"]').val();
-                
+                let variantId = form.find('input[name="variantId"]:checked').val() || null;
                 // 1. TẠO HIỆU ỨNG BAY VÀO GIỎ
                 let cartIcon = $('#cartDropdownTrigger'); // Lấy icon giỏ hàng
                 let imgToDrag = $('#slider .carousel-item.active img').eq(0); // Lấy ảnh sản phẩm
@@ -331,8 +331,9 @@
                 }
 
                 // 2. GỌI HÀM AJAX THÊM VÀO GIỎ
+                // 2. GỌI HÀM AJAX THÊM VÀO GIỎ
                 if (typeof addToCartAjax === "function") {
-                    addToCartAjax(productId, qty);
+                    addToCartAjax(productId, qty, variantId); // <--- THÊM variantId VÀO ĐÂY
                 } else {
                     console.error("Hàm addToCartAjax chưa được định nghĩa trong _Layout.cshtml");
                 }

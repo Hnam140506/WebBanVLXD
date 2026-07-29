@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System;
 using Net.payOS;        // Dùng đúng thư viện gốc
 using Net.payOS.Types;  // Dùng đúng thư viện gốc
+using Microsoft.EntityFrameworkCore;
 
 namespace WebBanVLXD.Controllers
 {
@@ -38,16 +39,54 @@ namespace WebBanVLXD.Controllers
         public IActionResult Index() => View(GetCartItems());
 
         [HttpPost]
-        public IActionResult AddToCart(string productId, int quantity = 1, string submitAction = "add")
+        // ĐÃ SỬA: Thêm tham số string? variantId
+        public IActionResult AddToCart(string productId, int quantity = 1, string? variantId = null, string submitAction = "add")
         {
             var product = _context.Products.Find(productId);
             if (product == null) return NotFound();
 
             var cart = GetCartItems();
-            var item = cart.FirstOrDefault(i => i.Product.Id == productId);
+            
+            // ĐÃ SỬA: Tìm kiếm dựa trên CẢ productId và variantId để không bị gộp chung
+            var item = cart.FirstOrDefault(i => i.Product.Id == productId && i.VariantId == variantId);
 
-            if (item != null) item.Quantity += quantity;
-            else cart.Add(new CartItem { Product = product, Quantity = quantity });
+            if (item != null) 
+            {
+                item.Quantity += quantity;
+            }
+            else 
+            {
+                // ĐÃ SỬA: Xử lý lấy Tên, Hình ảnh và Giá của Phân loại (Variant)
+                string finalVariantName = "";
+                string finalImageUrl = product.ImageUrl ?? "";
+                decimal finalPrice = product.Price;
+
+                if (!string.IsNullOrEmpty(variantId))
+                {
+                    // LƯU Ý: Nếu bảng phân loại trong AppDbContext của bạn tên khác, hãy đổi "ProductVariants" thành tên đúng
+                    var variant = _context.ProductVariants.Find(variantId); 
+                    if (variant != null)
+                    {
+                        finalVariantName = variant.Name; // Lấy tên phân loại
+                        finalPrice = variant.Price > 0 ? variant.Price : product.Price;
+                        
+                        // Nếu phân loại có ảnh riêng thì lấy, không thì dùng ảnh gốc
+                        if (!string.IsNullOrEmpty(variant.ImageUrl)) 
+                        {
+                            finalImageUrl = variant.ImageUrl;
+                        }
+                    }
+                }
+
+                cart.Add(new CartItem { 
+                    Product = product, 
+                    Quantity = quantity,
+                    VariantId = variantId,
+                    VariantName = finalVariantName, // Lưu tên phân loại
+                    ImageUrl = finalImageUrl,       // Lưu ảnh phân loại
+                    Price = finalPrice              // Lưu giá chuẩn
+                });
+            }
 
             SaveCartItems(cart);
 
@@ -68,10 +107,12 @@ namespace WebBanVLXD.Controllers
             // Nếu không lấy được URL trang trước đó, đưa về trang Giỏ hàng mặc định
             return RedirectToAction("Index");
         }
-        public IActionResult Remove(string productId)
+        
+        // ĐÃ SỬA: Cập nhật hàm Remove để xóa đúng phân loại
+        public IActionResult Remove(string productId, string? variantId)
         {
             var cart = GetCartItems();
-            cart.RemoveAll(i => i.Product.Id == productId);
+            cart.RemoveAll(i => i.Product.Id == productId && i.VariantId == variantId);
             SaveCartItems(cart);
             return RedirectToAction("Index");
         }
@@ -96,7 +137,6 @@ namespace WebBanVLXD.Controllers
             var cart = GetCartItems();
             if (cart.Count == 0) return RedirectToAction("Index");
 
-            // BƯỚC CẢI TIẾN: Lọc các sản phẩm còn tồn tại trong DB, lấy giá thật từ DB để chống hack
             var validOrderDetails = new List<OrderDetail>();
             decimal totalAmount = 0;
 
@@ -105,15 +145,18 @@ namespace WebBanVLXD.Controllers
                 var dbProduct = _context.Products.Find(item.Product.Id);
                 if (dbProduct != null)
                 {
+                    // ĐÃ SỬA: Lấy giá từ item.Price (đã gán lúc AddToCart) thay vì mặc định lấy giá gốc của Product
+                    decimal finalPrice = item.Price > 0 ? item.Price : dbProduct.Price;
+
                     validOrderDetails.Add(new OrderDetail
                     {
                         ProductId = dbProduct.Id,
                         Quantity = item.Quantity,
-                        Price = dbProduct.Price // Lấy giá chuẩn từ Database
+                        Price = finalPrice // Đảm bảo lưu đúng giá
                     });
 
-                    // Tính tổng tiền dựa trên sản phẩm thật
-                    totalAmount += dbProduct.Price * item.Quantity;
+                    // Tính tổng tiền dựa trên giá chính xác
+                    totalAmount += finalPrice * item.Quantity;
 
                     // Trừ tồn kho luôn
                     dbProduct.StockQuantity -= item.Quantity;
@@ -218,20 +261,58 @@ namespace WebBanVLXD.Controllers
                 return RedirectToAction("Index");
             }
         }
+        
         // ==========================================
         // TÍNH NĂNG AJAX & MINI CART
         // ==========================================
         [HttpPost]
-        public IActionResult AddToCartAjax(string productId, int quantity = 1)
+        // ĐÃ SỬA: Bổ sung tham số variantId
+        public IActionResult AddToCartAjax(string productId, int quantity = 1, string? variantId = null)
         {
             var product = _context.Products.Find(productId);
             if (product == null) return Json(new { success = false, message = "Không tìm thấy sản phẩm!" });
 
             var cart = GetCartItems();
-            var item = cart.FirstOrDefault(i => i.Product.Id == productId);
+            
+            // ĐÃ SỬA: Chặn việc cộng dồn nếu khác phân loại
+            var item = cart.FirstOrDefault(i => i.Product.Id == productId && i.VariantId == variantId);
 
-            if (item != null) item.Quantity += quantity;
-            else cart.Add(new CartItem { Product = product, Quantity = quantity });
+            if (item != null) 
+            {
+                item.Quantity += quantity;
+            }
+            else 
+            {
+                // ĐÃ SỬA: Xử lý lấy Tên, Hình ảnh và Giá của Phân loại (Variant)
+                string finalVariantName = "";
+                string? finalImageUrl = product.ImageUrl ?? "";
+                decimal finalPrice = product.Price;
+
+                if (!string.IsNullOrEmpty(variantId))
+                {
+                    var variant = _context.ProductVariants.Find(variantId);
+                    if (variant != null)
+                    {
+                        finalVariantName = variant.Name;
+                        finalPrice = variant.Price > 0 ? variant.Price : product.Price;
+                        
+                        if (!string.IsNullOrEmpty(variant.ImageUrl)) 
+                        {
+                            finalImageUrl = variant.ImageUrl;
+                        }
+                    }
+                }
+
+                // ĐÃ SỬA: Gán Price, Name, ImageUrl chuẩn để giỏ hàng hiển thị đúng
+                cart.Add(new CartItem { 
+                    Product = product, 
+                    Quantity = quantity,
+                    VariantId = variantId,
+                    VariantName = finalVariantName,
+                    ImageUrl = finalImageUrl,
+                    Price = finalPrice
+                });
+            }
 
             SaveCartItems(cart);
 
@@ -243,6 +324,20 @@ namespace WebBanVLXD.Controllers
         {
             var cart = GetCartItems();
             return PartialView("_MiniCart", cart);
+        }
+        
+        [HttpPost]
+        public IActionResult UpdateQuantity(string productId, string? variantId, int quantity)
+        {
+            var cart = GetCartItems();
+            var item = cart.FirstOrDefault(i => i.Product.Id == productId && i.VariantId == variantId);
+            if (item != null)
+            {
+                if (quantity > 0) item.Quantity = quantity;
+                else cart.Remove(item); // Xóa luôn nếu số lượng = 0
+            }
+            SaveCartItems(cart);
+            return RedirectToAction("Index");
         }
     }
 }

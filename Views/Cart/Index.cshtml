@@ -16,7 +16,7 @@
                             <tr>
                                 <th>Sản phẩm</th>
                                 <th>Giá</th>
-                                <th style="width: 120px;">Số lượng</th>
+                                <th style="width: 140px;">Số lượng</th>
                                 <th>Tổng</th>
                                 <th></th>
                             </tr>
@@ -26,16 +26,40 @@
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <img src="@item.Product.ImageUrl" style="width: 50px; height: 50px;" class="rounded me-3" />
-                                            <span class="fw-bold">@item.Product.Name</span>
+                                            <!-- Ưu tiên lấy ảnh phân loại, nếu không có mới lấy ảnh gốc -->
+                                            <img src="@(item.ImageUrl ?? item.Product.ImageUrl)" style="width: 60px; height: 60px;" class="rounded me-3 object-fit-cover" />
+                                            <div>
+                                                <span class="fw-bold d-block text-dark">@item.Product.Name</span>
+                                                <!-- Hiện tên phân loại nếu khách có chọn -->
+                                                @if (!string.IsNullOrEmpty(item.VariantName))
+                                                {
+                                                    <span class="badge bg-light text-dark border mt-1">Phân loại: @item.VariantName</span>
+                                                }
+                                            </div>
                                         </div>
                                     </td>
-                                    <td>@item.Product.Price.ToString("N0") đ</td>
-                                    <td>@item.Quantity @item.Product.Unit</td>
-                                    <td class="fw-bold text-orange">@((item.Product.Price * item.Quantity).ToString("N0")) đ</td>
+                                    <td class="fw-bold">@item.Price.ToString("N0") đ</td>
                                     <td>
-                                        <a asp-action="Remove" asp-route-productId="@item.Product.Id" class="text-danger">
-                                            <i class="fa-solid fa-trash"></i>
+                                        <!-- Form Tăng/Giảm Số Lượng dùng JavaScript để bấm chuẩn xác -->
+                                        <form asp-action="UpdateQuantity" method="post" class="d-flex align-items-center cart-qty-form" style="width: 120px;">
+                                            <input type="hidden" name="productId" value="@item.Product.Id" />
+                                            <input type="hidden" name="variantId" value="@item.VariantId" />
+                                            
+                                            <!-- Nút Trừ (-) -->
+                                            <button type="button" class="btn btn-sm btn-outline-secondary px-2 btn-minus">-</button>
+                                            
+                                            <!-- Ô input số lượng -->
+                                            <input type="number" name="quantity" value="@item.Quantity" class="form-control form-control-sm text-center mx-1 fw-bold qty-input" min="1" />
+                                            
+                                            <!-- Nút Cộng (+) -->
+                                            <button type="button" class="btn btn-sm btn-outline-secondary px-2 btn-plus">+</button>
+                                        </form>
+                                    </td>
+                                    <td class="fw-bold text-orange">@((item.Price * item.Quantity).ToString("N0")) đ</td>
+                                    <td>
+                                        <!-- Nút xóa có truyền đủ cả ProductId và VariantId -->
+                                        <a asp-action="Remove" asp-route-productId="@item.Product.Id" asp-route-variantId="@item.VariantId" class="text-danger">
+                                            <i class="fa-solid fa-trash fs-5"></i>
                                         </a>
                                     </td>
                                 </tr>
@@ -45,24 +69,23 @@
                 </div>
             </div>
 
-            <!-- Cột phải: Tóm tắt giỏ hàng (Đã sửa lại để link sang trang Checkout) -->
+            <!-- Cột phải: Tóm tắt giỏ hàng -->
             <div class="col-lg-4">
                 <div class="card border-0 shadow-sm p-4 rounded-4 bg-light sticky-top" style="top: 100px;">
                     <h5 class="fw-bold mb-3"><i class="fa-solid fa-receipt me-2"></i>Tóm tắt giỏ hàng</h5>
                     
                     <div class="d-flex justify-content-between mb-3 text-muted">
                         <span>Tạm tính:</span>
-                        <span>@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</span>
+                        <span>@Model.Sum(i => i.Price * i.Quantity).ToString("N0") đ</span>
                     </div>
                     
                     <hr>
                     
                     <div class="d-flex justify-content-between mb-4">
                         <span class="fw-bold fs-5">Tổng tiền:</span>
-                        <h4 class="text-orange fw-bold">@Model.Sum(i => i.Product.Price * i.Quantity).ToString("N0") đ</h4>
+                        <h4 class="text-orange fw-bold">@Model.Sum(i => i.Price * i.Quantity).ToString("N0") đ</h4>
                     </div>
                     
-                    <!-- Nút này dùng thẻ <a> để gọi lệnh GET sang trang Checkout -->
                     <a href="/Cart/Checkout" class="btn btn-orange w-100 fw-bold text-white py-3 rounded-pill shadow-sm fs-5 text-decoration-none text-center">
                         TIẾN HÀNH THANH TOÁN
                     </a>
@@ -77,3 +100,40 @@
         </div>
     }
 </div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Khi bấm nút Trừ (-)
+            $('.btn-minus').click(function () {
+                let form = $(this).closest('form');
+                let input = form.find('.qty-input');
+                let newVal = parseInt(input.val()) - 1;
+                if (newVal >= 1) {
+                    input.val(newVal);
+                    form.submit();
+                }
+            });
+
+            // Khi bấm nút Cộng (+)
+            $('.btn-plus').click(function () {
+                let form = $(this).closest('form');
+                let input = form.find('.qty-input');
+                let newVal = parseInt(input.val()) + 1;
+                input.val(newVal);
+                form.submit();
+            });
+
+            // Khi người dùng gõ trực tiếp số vào ô và rời khỏi ô đó (change)
+            $('.qty-input').change(function () {
+                let form = $(this).closest('form');
+                if (parseInt($(this).val()) >= 1) {
+                    form.submit();
+                } else {
+                    $(this).val(1);
+                    form.submit();
+                }
+            });
+        });
+    </script>
+}

@@ -116,6 +116,7 @@ body {
 
 .product-title-smart {
     display: -webkit-box;
+    line-clamp: 2; /* Đã bổ sung thuộc tính chuẩn để fix cảnh báo */
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
@@ -194,9 +195,11 @@ body {
 .quantity-group input[type="number"]::-webkit-outer-spin-button,
 .quantity-group input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
+    appearance: none; /* Đã bổ sung thuộc tính chuẩn để fix cảnh báo */
     margin: 0;
 }
 .quantity-group input[type="number"] {
+    appearance: textfield;
     -moz-appearance: textfield;
 }
 .quantity-group .btn {
