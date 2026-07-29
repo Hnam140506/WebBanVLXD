@@ -3,8 +3,14 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using WebBanVLXD.Models;
 using Net.payOS; // Bắt buộc phải là Net.payOS
+using DinkToPdf;
+using DinkToPdf.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ================= PDF Converter Service (MỚI) =================
+// Đăng ký dịch vụ chuyển đổi HTML sang PDF để dùng trong OrderController
+builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
