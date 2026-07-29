@@ -7,11 +7,11 @@ namespace WebBanVLXD.Models
     public class Coupon
     {
         [Key]
-        public int Id { get; set; }
-        
-        [Required]
-        [StringLength(50)]
-        public string Code { get; set; } = string.Empty;
+    public string Id { get; set; } = Guid.NewGuid().ToString(); 
+    
+    [Required]
+    [StringLength(50)]
+    public string Code { get; set; } = string.Empty;
         
         [Column(TypeName = "decimal(18,2)")]
         public decimal DiscountAmount { get; set; } // Số tiền được giảm

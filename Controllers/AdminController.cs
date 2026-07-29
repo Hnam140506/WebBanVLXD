@@ -90,7 +90,7 @@ namespace WebBanVLXD.Controllers
 
         [HttpPost]
         public async Task<IActionResult> CreateProduct(Product product, List<IFormFile> moreImages,
-            string[] vNames, decimal[] vPrices, int[] vStocks)
+    string[] vNames, decimal[] vPrices, int[] vStocks, List<IFormFile> vImages) // <-- Thêm vImages
         {
             // 1. Xử lý lưu nhiều ảnh
             if (moreImages != null && moreImages.Count > 0)
@@ -108,14 +108,22 @@ namespace WebBanVLXD.Controllers
             {
                 for (int i = 0; i < vNames.Length; i++)
                 {
-                    product.Variants.Add(new ProductVariant
+                    var variant = new ProductVariant
                     {
                         Name = vNames[i],
                         Price = vPrices[i],
                         StockQuantity = vStocks[i]
-                    });
+                    };
+
+                    // XỬ LÝ LƯU ẢNH CHO TỪNG PHIÊN BẢN
+                    if (vImages != null && vImages.Count > i && vImages[i] != null && vImages[i].Length > 0)
+                    {
+                        variant.ImageUrl = await SaveImage(vImages[i]);
+                    }
+
+                    product.Variants.Add(variant);
                 }
-                // Đồng bộ giá và tồn kho chính để hiển thị ở trang danh sách
+                // Đồng bộ giá và tồn kho chính
                 product.Price = vPrices[0];
                 product.StockQuantity = vStocks.Sum();
             }
