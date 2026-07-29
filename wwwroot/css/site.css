@@ -306,3 +306,6 @@ body {
     background-color: var(--bs-orange);
     border-color: var(--bs-orange);
 }
+.italic { font-style: italic; }
+.x-small { font-size: 0.75rem; }
+.text-orange { color: #f57224; } 

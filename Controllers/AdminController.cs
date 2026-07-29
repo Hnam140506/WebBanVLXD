@@ -244,17 +244,42 @@ namespace WebBanVLXD.Controllers
         // 6. QUẢN LÝ ĐÁNH GIÁ (Reviews)
         // ==========================================
         public IActionResult Reviews()
-        {
-            return View(_context.Reviews.OrderByDescending(r => r.CreatedAt).ToList());
-        }
+{
+    // Lấy danh sách đánh giá
+    var reviews = _context.Reviews.OrderByDescending(r => r.CreatedAt).ToList();
+    
+    // Tạo từ điển tra cứu tên sản phẩm để hiển thị thay vì chỉ hiện ID
+    ViewBag.ProductNames = _context.Products.ToDictionary(p => p.Id, p => p.Name);
+    
+    return View(reviews);
+}
 
-        [HttpPost]
-        public IActionResult DeleteReview(string id)
-        {
-            var review = _context.Reviews.Find(id);
-            if (review != null) { _context.Reviews.Remove(review); _context.SaveChanges(); }
-            return RedirectToAction("Reviews");
-        }
+// Thêm hàm xử lý trả lời đánh giá
+[HttpPost]
+public IActionResult ReplyReview(string id, string adminReply)
+{
+    var review = _context.Reviews.Find(id);
+    if (review != null)
+    {
+        review.AdminReply = adminReply;
+        review.ReplyDate = DateTime.Now;
+        _context.SaveChanges();
+    }
+    return RedirectToAction("Reviews");
+}
+
+[HttpPost]
+public IActionResult DeleteReview(string id)
+{
+    var review = _context.Reviews.Find(id);
+    if (review != null) 
+    { 
+        _context.Reviews.Remove(review); 
+        _context.SaveChanges(); 
+    }
+    return RedirectToAction("Reviews");
+}
+        
 
         // ==========================================
         // HÀM HỖ TRỢ (HELPER)

@@ -1,31 +1,71 @@
 @model IEnumerable<WebBanVLXD.Models.Review>
-@{ ViewData["Title"] = "Quản lý Đánh giá"; Layout = "_AdminLayout"; }
+@{
+    ViewData["Title"] = "Quản lý Đánh giá";
+    Layout = "_AdminLayout";
+    var productNames = ViewBag.ProductNames as Dictionary<string, string>;
+}
 
-<div class="card card-admin p-4">
-    <h5 class="fw-bold mb-4">Đánh giá từ khách hàng</h5>
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>Sản phẩm</th><th>Người dùng</th><th>Sao</th><th>Bình luận</th><th>Thao tác</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var r in Model) {
-            <tr>
-                <td><small>@r.ProductId</small></td>
-                <td><b>@r.UserName</b></td>
-                <td class="text-warning">
-                    @for(int i=0; i<r.Rating; i++){ <i class="fa-solid fa-star"></i> }
-                </td>
-                <td>@r.Comment</td>
-                <td>
-                    <form asp-action="DeleteReview" method="post" onsubmit="return confirm('Xóa đánh giá này?')">
-                        <input type="hidden" name="id" value="@r.Id" />
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
-                    </form>
-                </td>
-            </tr>
-            }
-        </tbody>
-    </table>
+<div class="card card-admin p-4 shadow-sm border-0">
+    <h5 class="fw-bold mb-4"><i class="fa-solid fa-comments me-2 text-primary"></i>Phản hồi đánh giá khách hàng</h5>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Sản phẩm</th>
+                    <th>Khách hàng</th>
+                    <th>Đánh giá</th>
+                    <th>Nội dung & Phản hồi</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model)
+                {
+                    <tr>
+                        <td style="max-width: 200px;">
+                            <small class="text-muted">ID: @r.ProductId</small><br />
+                            <b class="text-dark">@(productNames != null && productNames.ContainsKey(r.ProductId) ? productNames[r.ProductId] : "Sản phẩm không rõ")</b>
+                        </td>
+                        <td>
+                            <div class="fw-bold">@r.UserName</div>
+                            <small class="text-muted">@r.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                        </td>
+                        <td>
+                            <div class="text-warning">
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    <i class="fa-@(i <= r.Rating ? "solid" : "regular") fa-star small"></i>
+                                }
+                            </div>
+                        </td>
+                        <td>
+                            <div class="mb-2">"@r.Comment"</div>
+                            
+                            <!-- Form trả lời nhanh ngay trên bảng -->
+                            <form asp-action="ReplyReview" method="post" class="d-flex gap-2">
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <input type="text" name="adminReply" value="@r.AdminReply" 
+                                       class="form-control form-control-sm" placeholder="Nhập lời phản hồi..." />
+                                <button type="submit" class="btn btn-sm btn-dark">Lưu</button>
+                            </form>
+                            
+                            @if (r.ReplyDate != null)
+                            {
+                                <small class="text-success mt-1 d-block"><i class="fa-solid fa-check-double me-1"></i>Đã phản hồi ngày @r.ReplyDate?.ToString("dd/MM/yyyy")</small>
+                            }
+                        </td>
+                        <td>
+                            <form asp-action="DeleteReview" method="post" onsubmit="return confirm('Xóa vĩnh viễn đánh giá này?')">
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </div>

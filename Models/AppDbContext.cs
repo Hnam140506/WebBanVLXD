@@ -25,6 +25,7 @@ namespace WebBanVLXD.Models
             modelBuilder.Entity<Product>()
                 .Property(p => p.OldPrice)
                 .HasPrecision(18, 2);
+            modelBuilder.Entity<Review>().Property(r => r.AdminReply).HasColumnName("AdminReply");
         }
     }
 }
