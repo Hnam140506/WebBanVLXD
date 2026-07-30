@@ -6,7 +6,7 @@
 }
 
 <div class="card card-admin p-4 shadow-sm border-0">
-    <h5 class="fw-bold mb-4 text-success"><i class="fa-solid fa-pen-to-square me-2"></i>Chỉnh sửa sản phẩm</h5>
+    <h5 class="fw-bold mb-4 text-success"><i class="fa-solid fa-pen-to-square me-2"></i>Chỉnh sửa sản phẩm chuyên sâu</h5>
 
     <form asp-action="EditProduct" method="post" enctype="multipart/form-data">
         <input type="hidden" asp-for="Id" />
@@ -25,11 +25,15 @@
                 </select>
             </div>
 
+            <!-- Ảnh đại diện cũ & Chọn nhiều ảnh Slider mới -->
             <div class="col-md-4 text-center border-end">
-                <label class="form-label fw-bold small d-block">Ảnh hiện tại</label>
+                <label class="form-label fw-bold small d-block">Ảnh đại diện hiện tại</label>
                 <img src="@Model.ImageUrl" class="rounded border mb-2 shadow-sm"
                      style="width: 150px; height: 150px; object-fit: cover;">
-                <input type="file" name="imageFile" class="form-control form-control-sm" accept="image/*" />
+                <input type="file" name="imageFile" class="form-control form-control-sm mb-2" accept="image/*" />
+                
+                <label class="form-label fw-bold small d-block mt-3">Thêm ảnh Slider mới</label>
+                <input type="file" name="moreImages" class="form-control form-control-sm" multiple accept="image/*" />
             </div>
 
             <div class="col-md-8">
@@ -53,6 +57,66 @@
                 </div>
             </div>
 
+            <!-- PHẦN QUẢN LÝ PHIÊN BẢN (VARIANTS) -->
+            <div class="col-12 mt-4 bg-light p-3 rounded border">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold m-0"><i class="fa-solid fa-list-check me-2"></i>Danh sách Phiên bản & Giá riêng</h6>
+                    <button type="button" class="btn btn-sm btn-dark" onclick="addVariant()">+ Thêm phiên bản mới</button>
+                </div>
+
+                <!-- Hiển thị các phiên bản đang có sẵn trong CSDL -->
+                @if (Model.Variants != null && Model.Variants.Any())
+                {
+                    <div class="mb-3">
+                        <label class="small text-muted fw-bold d-mb-2">Phiên bản hiện tại:</label>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered bg-white align-middle">
+                                <thead class="table-secondary">
+                                    <tr>
+                                        <th>Tên phiên bản</th>
+                                        <th>Giá (đ)</th>
+                                        <th>Tồn kho</th>
+                                        <th>Ảnh riêng</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var v in Model.Variants)
+                                    {
+                                        <tr>
+                                            <td><b>@v.Name</b></td>
+                                            <td>@v.Price.ToString("N0") đ</td>
+                                            <td>@v.StockQuantity</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(v.ImageUrl))
+                                                {
+                                                    <img src="@v.ImageUrl" width="35" height="35" class="rounded object-fit-cover" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted small">Không có</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+
+                <!-- Khu vực thêm phiên bản mới khi Edit -->
+                <div id="variant-container">
+                    <label class="small text-muted fw-bold mb-2">Thêm phiên bản bổ sung:</label>
+                    <div class="row g-2 mb-2 variant-item align-items-center">
+                        <div class="col-md-3"><input type="text" name="vNames" class="form-control" placeholder="Tên (VD: Màu đỏ)"></div>
+                        <div class="col-md-3"><input type="number" name="vPrices" class="form-control" placeholder="Giá"></div>
+                        <div class="col-md-2"><input type="number" name="vStocks" class="form-control" placeholder="Tồn kho"></div>
+                        <div class="col-md-3"><input type="file" name="vImages" class="form-control" accept="image/*"></div>
+                        <div class="col-md-1"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="col-12">
                 <label class="form-label fw-bold small">Mô tả chi tiết</label>
                 <textarea asp-for="Description" class="form-control" rows="5" required></textarea>
@@ -61,8 +125,22 @@
             <div class="col-12 mt-4 text-end">
                 <hr>
                 <a asp-action="Products" class="btn btn-light border px-4">Hủy</a>
-                <button type="submit" class="btn btn-success px-5 fw-bold shadow-sm">CẬP NHẬT</button>
+                <button type="submit" class="btn btn-success px-5 fw-bold shadow-sm">CẬP NHẬT SẢN PHẨM</button>
             </div>
         </div>
     </form>
 </div>
+
+<script>
+    function addVariant() {
+        const row = `
+        <div class="row g-2 mb-2 variant-item align-items-center">
+            <div class="col-md-3"><input type="text" name="vNames" class="form-control" placeholder="Tên"></div>
+            <div class="col-md-3"><input type="number" name="vPrices" class="form-control" placeholder="Giá"></div>
+            <div class="col-md-2"><input type="number" name="vStocks" class="form-control" placeholder="Tồn kho"></div>
+            <div class="col-md-3"><input type="file" name="vImages" class="form-control" accept="image/*"></div>
+            <div class="col-md-1"><button type="button" class="btn btn-danger w-100" onclick="this.closest('.variant-item').remove()">X</button></div>
+        </div>`;
+        document.getElementById('variant-container').insertAdjacentHTML('beforeend', row);
+    }
+</script>

@@ -149,13 +149,18 @@ namespace WebBanVLXD.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> EditProduct(Product product, IFormFile imageFile)
+        public async Task<IActionResult> EditProduct(Product product, IFormFile? imageFile, List<IFormFile>? moreImages,
+            string[]? vNames, decimal[]? vPrices, int[]? vStocks, List<IFormFile>? vImages)
         {
-            // 1. Lấy sản phẩm cũ từ Database (bỏ AsNoTracking để EF theo dõi sự thay đổi)
-            var existing = _context.Products.FirstOrDefault(p => p.Id == product.Id);
+            // 1. Lấy sản phẩm cũ kèm theo Images và Variants từ Database
+            var existing = _context.Products
+                .Include(p => p.Images)
+                .Include(p => p.Variants)
+                .FirstOrDefault(p => p.Id == product.Id);
+
             if (existing == null) return NotFound();
 
-            // 2. Chỉ cập nhật các thông tin văn bản/số cơ bản
+            // 2. Cập nhật các thông tin văn bản/số cơ bản
             existing.Name = product.Name;
             existing.Category = product.Category;
             existing.Price = product.Price;
@@ -164,16 +169,55 @@ namespace WebBanVLXD.Controllers
             existing.Brand = product.Brand;
             existing.Description = product.Description;
 
-            // 3. Xử lý Ảnh đại diện (ImageUrl)
-            // - Tham số "imageFile" giờ đã khớp với name="imageFile" bên HTML
-            // - Nếu admin có chọn file ảnh mới -> Lưu ảnh và ghi đè link
-            // - Nếu không chọn ảnh mới -> Bỏ qua, ảnh cũ trong Database vẫn được giữ nguyên
+            // 3. Xử lý Ảnh đại diện chính (ImageUrl) nếu có chọn file mới
             if (imageFile != null && imageFile.Length > 0)
             {
                 existing.ImageUrl = await SaveImage(imageFile);
             }
 
-            // 4. Lưu thay đổi
+            // 4. Xử lý lưu thêm các ảnh Slider (moreImages)
+            if (moreImages != null && moreImages.Count > 0)
+            {
+                foreach (var file in moreImages)
+                {
+                    if (file.Length > 0)
+                    {
+                        string url = await SaveImage(file);
+                        existing.Images.Add(new ProductImage { Url = url });
+                    }
+                }
+            }
+
+            // 5. Xử lý thêm các phiên bản (Variants) mới bổ sung (nếu admin có điền thêm)
+            if (vNames != null && vNames.Length > 0)
+            {
+                for (int i = 0; i < vNames.Length; i++)
+                {
+                    // Chỉ thêm nếu người dùng có nhập tên phiên bản
+                    if (!string.IsNullOrEmpty(vNames[i]))
+                    {
+                        var variant = new ProductVariant
+                        {
+                            Name = vNames[i],
+                            Price = vPrices != null && vPrices.Length > i ? vPrices[i] : existing.Price,
+                            StockQuantity = vStocks != null && vStocks.Length > i ? vStocks[i] : 0
+                        };
+
+                        // Lưu ảnh riêng cho phiên bản nếu có chọn
+                        if (vImages != null && vImages.Count > i && vImages[i] != null && vImages[i].Length > 0)
+                        {
+                            variant.ImageUrl = await SaveImage(vImages[i]);
+                        }
+
+                        existing.Variants.Add(variant);
+                    }
+                }
+
+                // Cập nhật lại tổng tồn kho chính nếu cần
+                existing.StockQuantity = existing.Variants.Sum(v => v.StockQuantity);
+            }
+
+            // 6. Lưu thay đổi vào Database
             await _context.SaveChangesAsync();
             return RedirectToAction("Products");
         }
