@@ -460,5 +460,59 @@ namespace WebBanVLXD.Controllers
             }
             return View("Profile", user);
         }
+        // ==========================================
+        // --- ĐỔI MẬT KHẨU (KHI ĐÃ ĐĂNG NHẬP) ---
+        // ==========================================
+        [HttpGet]
+        public IActionResult ChangePassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ChangePassword(string currentPassword, string newPassword, string confirmPassword)
+        {
+            // 1. Kiểm tra xác nhận mật khẩu mới có khớp nhau không
+            if (newPassword != confirmPassword)
+            {
+                ModelState.AddModelError("", "Mật khẩu xác nhận mới không khớp!");
+                return View();
+            }
+
+            if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 6)
+            {
+                ModelState.AddModelError("", "Mật khẩu mới phải có ít nhất 6 ký tự!");
+                return View();
+            }
+
+            // 2. Lấy ID của user đang đăng nhập hiện tại
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return RedirectToAction("Login");
+            }
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            // 3. Kiểm tra mật khẩu hiện tại có đúng không bằng PasswordHasher
+            var passwordVerification = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, currentPassword);
+            if (passwordVerification == PasswordVerificationResult.Failed)
+            {
+                ModelState.AddModelError("", "Mật khẩu hiện tại không chính xác!");
+                return View();
+            }
+
+            // 4. Mã hóa và lưu mật khẩu mới
+            user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Đổi mật khẩu thành công!";
+            return RedirectToAction("Index", "Home"); // Hoặc điều hướng về trang cá nhân / thông báo thành công
+        }
     }
 }
