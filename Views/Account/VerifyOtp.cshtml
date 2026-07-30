@@ -1,0 +1,32 @@
+@{
+    ViewData["Title"] = "Xác thực mã OTP";
+}
+
+<div class="row justify-content-center mt-5 mb-5">
+    <div class="col-md-4">
+        <div class="card shadow border-0 p-4 rounded-4">
+            <div class="text-center mb-4">
+                <h3 class="fw-bold text-dark">Nhập mã xác nhận</h3>
+                <p class="text-muted small">Chúng tôi đã gửi mã OTP gồm 6 chữ số đến email: <b class="text-primary">@ViewBag.Email</b></p>
+            </div>
+
+            <form asp-action="VerifyOtp" method="post">
+                <div class="text-danger small mb-3" asp-validation-summary="ModelOnly"></div>
+                
+                <input type="hidden" name="email" value="@ViewBag.Email" />
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Mã OTP (6 chữ số)</label>
+                    <input type="text" name="otpCode" class="form-control text-center fw-bold fs-4" maxlength="6" placeholder="______" required autocomplete="off" />
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 shadow-sm fw-bold">Xác thực mã</button>
+            </form>
+
+            <div class="text-center mt-3 small">
+                <span class="text-muted">Không nhận được mã?</span>
+                <a asp-action="ForgotPassword" class="text-decoration-none fw-bold ms-1">Gửi lại</a>
+            </div>
+        </div>
+    </div>
+</div>

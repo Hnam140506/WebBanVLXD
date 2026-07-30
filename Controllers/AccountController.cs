@@ -207,6 +207,9 @@ namespace WebBanVLXD.Controllers
         // ==========================================
         // --- QUÊN MẬT KHẨU & EMAIL ---
         // ==========================================
+        // ==========================================
+        // --- QUÊN MẬT KHẨU & GỬI MÃ OTP QUA EMAIL ---
+        // ==========================================
         [HttpGet]
         public IActionResult ForgotPassword() => View();
 
@@ -216,18 +219,105 @@ namespace WebBanVLXD.Controllers
             var user = _context.Users.FirstOrDefault(u => u.Email == email);
             if (user != null)
             {
-                user.ResetPasswordToken = Guid.NewGuid().ToString();
+                // 1. Tạo mã OTP ngẫu nhiên 6 chữ số
+                string otpCode = new Random().Next(100000, 999999).ToString();
+
+                // 2. Lưu OTP và thời gian hết hạn (15 phút) vào Database
+                user.ResetPasswordToken = otpCode;
                 user.ResetPasswordTokenExpiry = DateTime.UtcNow.AddMinutes(15);
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
 
-                var resetLink = Url.Action("ResetPassword", "Account", new { email = user.Email, token = user.ResetPasswordToken }, Request.Scheme);
-                await SendEmailAsync(user.Email, "Khôi phục mật khẩu - BuildMat", $"Click vào link để đặt lại mật khẩu: {resetLink}");
+                // 3. Gửi email chứa mã OTP
+                string emailSubject = "Mã xác nhận khôi phục mật khẩu - BuildSmart";
+                string emailBody = $@"
+                    <div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;'>
+                        <h2 style='color: #0b224c;'>Khôi phục mật khẩu tài khoản BuildSmart</h2>
+                        <p>Xin chào <b>{user.UserName}</b>,</p>
+                        <p>Bạn nhận được email này vì đã yêu cầu đặt lại mật khẩu cho tài khoản của mình.</p>
+                        <p>Mã xác nhận (OTP) của bạn là:</p>
+                        <h1 style='color: #f57224; letter-spacing: 5px; background: #f4f7f6; padding: 10px; text-align: center; width: 200px; border-radius: 5px;'>{otpCode}</h1>
+                        <p>Mã này có hiệu lực trong vòng <b>15 phút</b>. Vui lòng không chia sẻ mã này cho bất kỳ ai.</p>
+                        <hr style='border: none; border-top: 1px solid #eee;' />
+                        <p style='font-size: 12px; color: #777;'>Trân trọng,<br>Đội ngũ BuildSmart</p>
+                    </div>";
+
+                await SendEmailAsync(user.Email, emailSubject, emailBody);
             }
-            ViewBag.Message = "Nếu email chính xác, link khôi phục đã được gửi.";
+
+            // Chuyển hướng sang trang nhập OTP, truyền kèm email để người dùng không phải gõ lại
+            TempData["Email"] = email;
+            return RedirectToAction("VerifyOtp");
+        }
+[HttpGet]
+        public IActionResult VerifyOtp()
+        {
+            ViewBag.Email = TempData["Email"] ?? "";
+            TempData.Keep("Email"); // Giữ lại email nếu cần reload
             return View();
         }
 
+        [HttpPost]
+        public IActionResult VerifyOtp(string email, string otpCode)
+        {
+            var user = _context.Users.FirstOrDefault(u => u.Email == email && u.ResetPasswordToken == otpCode);
+
+            if (user != null && user.ResetPasswordTokenExpiry > DateTime.UtcNow)
+            {
+                // OTP đúng và còn hạn -> Chuyển sang trang đổi mật khẩu mới, truyền kèm token/otp xác thực
+                return RedirectToAction("ResetPasswordWithOtp", new { email = email, token = otpCode });
+            }
+
+            ModelState.AddModelError("", "Mã OTP không chính xác hoặc đã hết hạn!");
+            ViewBag.Email = email;
+            return View();
+        }
+
+        [HttpGet]
+        public IActionResult ResetPasswordWithOtp(string email, string token)
+        {
+            ViewBag.Email = email;
+            ViewBag.Token = token;
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPasswordWithOtp(string email, string token, string newPassword, string confirmPassword)
+        {
+            if (newPassword != confirmPassword) 
+            { 
+                ModelState.AddModelError("", "Mật khẩu xác nhận không khớp!"); 
+                ViewBag.Email = email;
+                ViewBag.Token = token;
+                return View(); 
+            }
+
+            if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 6)
+            {
+                ModelState.AddModelError("", "Mật khẩu phải có ít nhất 6 ký tự!");
+                ViewBag.Email = email;
+                ViewBag.Token = token;
+                return View();
+            }
+
+            var user = _context.Users.FirstOrDefault(u => u.Email == email && u.ResetPasswordToken == token);
+            if (user != null && user.ResetPasswordTokenExpiry > DateTime.UtcNow)
+            {
+                // Mã hóa mật khẩu mới và lưu lại
+                user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
+                
+                // Xóa token OTP để không bị tái sử dụng
+                user.ResetPasswordToken = null;
+                user.ResetPasswordTokenExpiry = null;
+                
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Đổi mật khẩu thành công! Vui lòng đăng nhập lại.";
+                return RedirectToAction("Login");
+            }
+
+            ModelState.AddModelError("", "Phiên làm việc đã hết hạn hoặc không hợp lệ.");
+            return View();
+        }
         [HttpGet]
         public IActionResult ResetPassword(string email, string token)
         {
