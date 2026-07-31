@@ -13,7 +13,7 @@ namespace WebBanVLXD.Controllers
             if (string.IsNullOrWhiteSpace(message))
                 return Json(new { success = false });
 
-            string apiKey = "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";
+            string apiKey = "";
 
             using var client = new HttpClient();
 
