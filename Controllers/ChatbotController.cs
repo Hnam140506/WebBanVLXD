@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System.Net.Http.Headers;
 using System.Text;
@@ -7,13 +8,20 @@ namespace WebBanVLXD.Controllers
 {
     public class ChatbotController : Controller
     {
+        private readonly IConfiguration _configuration;
+
+        public ChatbotController(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         [HttpPost]
         public async Task<IActionResult> AskAI(string message)
         {
             if (string.IsNullOrWhiteSpace(message))
                 return Json(new { success = false });
 
-            string apiKey = "";
+            string apiKey = _configuration["Groq:ApiKey"];
 
             using var client = new HttpClient();
 
@@ -23,19 +31,21 @@ namespace WebBanVLXD.Controllers
             var request = new
             {
                 model = "llama-3.3-70b-versatile",
-                messages = new[]
+                messages = new object[]
                 {
                     new
                     {
                         role = "system",
-                        content = "Bạn là nhân viên tư vấn của BuildSmart. Trả lời lịch sự, ngắn gọn dưới 100 chữ."
+                        content = "Bạn là nhân viên tư vấn bán vật liệu xây dựng của BuildSmart. Hãy trả lời ngắn gọn, lịch sự, dưới 100 chữ."
                     },
                     new
                     {
                         role = "user",
                         content = message
                     }
-                }
+                },
+                temperature = 0.7,
+                max_tokens = 200
             };
 
             var json = JsonConvert.SerializeObject(request);
