@@ -2,25 +2,25 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using WebBanVLXD.Models;
-using Net.payOS; // Bắt buộc phải là Net.payOS
+using Net.payOS;
 using DinkToPdf;
 using DinkToPdf.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ================= PDF Converter Service (MỚI) =================
+//PDF Converter Service
 // Đăng ký dịch vụ chuyển đổi HTML sang PDF để dùng trong OrderController
 builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
-// ================= SQL Server =================
+//SQL Server
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// ================= Session =================
+//Session
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -29,7 +29,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// ================= PayOS =================
+//PayOS
 var payOS = new Net.payOS.PayOS(
     builder.Configuration["PayOS:ClientId"] ?? "",
     builder.Configuration["PayOS:ApiKey"] ?? "",
@@ -37,7 +37,7 @@ var payOS = new Net.payOS.PayOS(
 );
 builder.Services.AddSingleton(payOS);
 
-// ================= Authentication =================
+//Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -60,7 +60,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AppSecret = "2b0980baa91e5cfe3c5d474f8a9ee3b2";
     });
 
-// ================= Forward Headers =================
+//Forward Headers
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
@@ -72,7 +72,7 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-// ================= Middleware =================
+//Middleware
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");

@@ -6,8 +6,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System;
-using Net.payOS;        // Dùng đúng thư viện gốc
-using Net.payOS.Types;  // Dùng đúng thư viện gốc
+using Net.payOS;
+using Net.payOS.Types;  
 using Microsoft.EntityFrameworkCore;
 
 namespace WebBanVLXD.Controllers
@@ -15,7 +15,7 @@ namespace WebBanVLXD.Controllers
     public class CartController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly Net.payOS.PayOS _payOS; // Tường minh kiểu dữ liệu
+        private readonly Net.payOS.PayOS _payOS;
 
         public CartController(AppDbContext context, Net.payOS.PayOS payOS)
         {
@@ -145,7 +145,7 @@ namespace WebBanVLXD.Controllers
                 var dbProduct = _context.Products.Find(item.Product.Id);
                 if (dbProduct != null)
                 {
-                    // ĐÃ SỬA: Lấy giá từ item.Price (đã gán lúc AddToCart) thay vì mặc định lấy giá gốc của Product
+                    //Lấy giá từ item.Price (đã gán lúc AddToCart) thay vì mặc định lấy giá gốc của Product
                     decimal finalPrice = item.Price > 0 ? item.Price : dbProduct.Price;
 
                     validOrderDetails.Add(new OrderDetail
@@ -283,7 +283,7 @@ namespace WebBanVLXD.Controllers
             }
             else 
             {
-                // ĐÃ SỬA: Xử lý lấy Tên, Hình ảnh và Giá của Phân loại (Variant)
+                //Xử lý lấy Tên, Hình ảnh và Giá của Phân loại (Variant)
                 string finalVariantName = "";
                 string? finalImageUrl = product.ImageUrl ?? "";
                 decimal finalPrice = product.Price;
@@ -334,7 +334,7 @@ namespace WebBanVLXD.Controllers
             if (item != null)
             {
                 if (quantity > 0) item.Quantity = quantity;
-                else cart.Remove(item); // Xóa luôn nếu số lượng = 0
+                else cart.Remove(item);
             }
             SaveCartItems(cart);
             return RedirectToAction("Index");

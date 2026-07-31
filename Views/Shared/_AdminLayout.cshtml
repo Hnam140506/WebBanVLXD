@@ -114,7 +114,6 @@
                         <i class="fa-solid fa-users me-2"></i> Quản lý Người dùng
                     </a>
                 </li>
-                <!-- Thêm vào sau mục Quản lý Người dùng -->
 <li>
     <a href="/Admin/Reviews" class="@(Context.Request.Path.ToString().ToLower().Contains("/admin/reviews") ? "active" : "")">
         <i class="fa-solid fa-star me-2"></i> Quản lý Đánh giá
@@ -138,9 +137,7 @@
             </ul>
         </nav>
 
-        <!-- PAGE CONTENT -->
         <div id="content">
-            <!-- Top Navbar -->
             <div class="top-nav d-flex justify-content-between align-items-center">
                 <h5 class="fw-bold mb-0">Xin chào, @User.Identity?.Name!</h5>
                 <div class="d-flex align-items-center">
@@ -151,7 +148,6 @@
                 </div>
             </div>
 
-            <!-- Main RenderBody -->
             @RenderBody()
         </div>
     </div>

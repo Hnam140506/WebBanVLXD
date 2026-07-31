@@ -38,7 +38,7 @@ namespace WebBanVLXD.Controllers
                 {
                     UserName = "SuperAdmin",
                     Email = adminEmail,
-                    Role = "Admin", // Quan trọng: Gán quyền Admin ở đây
+                    Role = "Admin", 
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -203,10 +203,6 @@ namespace WebBanVLXD.Controllers
 
             return RedirectToAction("Index", "Home");
         }
-
-        // ==========================================
-        // --- QUÊN MẬT KHẨU & EMAIL ---
-        // ==========================================
         // ==========================================
         // --- QUÊN MẬT KHẨU & GỬI MÃ OTP QUA EMAIL ---
         // ==========================================
@@ -253,7 +249,7 @@ namespace WebBanVLXD.Controllers
         public IActionResult VerifyOtp()
         {
             ViewBag.Email = TempData["Email"] ?? "";
-            TempData.Keep("Email"); // Giữ lại email nếu cần reload
+            TempData.Keep("Email");
             return View();
         }
 
@@ -512,7 +508,7 @@ namespace WebBanVLXD.Controllers
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = "Đổi mật khẩu thành công!";
-            return RedirectToAction("Index", "Home"); // Hoặc điều hướng về trang cá nhân / thông báo thành công
+            return RedirectToAction("Index", "Home"); // Hoặc điều hướng về trang cá nhân
         }
     }
 }

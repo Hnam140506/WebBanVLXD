@@ -43,7 +43,7 @@ namespace WebBanVLXD.Controllers
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var userName = User.Identity.Name;
 
-                // ÉP BUỘC: Chỉ lấy những đơn hàng thuộc về User này
+                //Chỉ lấy những đơn hàng thuộc về User này
                 query = query.Where(o => o.UserId == userId);
 
                 // --- CẬP NHẬT LOGIC KIỂM TRA ĐÁNH GIÁ THEO TỪNG ĐƠN HÀNG ---
@@ -117,7 +117,7 @@ namespace WebBanVLXD.Controllers
             var review = new Review
             {
                 ProductId = productId,
-                OrderId = orderId, // QUAN TRỌNG: Lưu mã đơn hàng vào bảng Review
+                OrderId = orderId,
                 UserName = userName,
                 Rating = rating,
                 Comment = comment,

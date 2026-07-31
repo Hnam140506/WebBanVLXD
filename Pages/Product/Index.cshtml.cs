@@ -30,7 +30,6 @@ namespace WebBanVLXD.Pages.Product
         
         public int TotalPages { get; set; }
 
-        // ĐỊNH NGHĨA BIẾN NÀY ĐỂ HẾT LỖI GẠCH ĐỎ
         public bool HasMore { get; set; } 
 
         private IQueryable<WebBanVLXD.Models.Product> GetProductQuery()
@@ -60,7 +59,7 @@ namespace WebBanVLXD.Pages.Product
         public void OnGet()
         {
             var query = GetProductQuery();
-            int pageSize = 20; // Hiện 20 cái mỗi lần
+            int pageSize = 20; // Hiện 20 cái
             
             int totalCount = query.Count();
             TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize);

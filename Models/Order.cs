@@ -17,7 +17,6 @@ namespace WebBanVLXD.Models {
         public string? CouponCode { get; set; }
         [Column(TypeName = "decimal(18,2)")]
         public decimal DiscountAmount { get; set; }
-        // ---------------------------
         public List<OrderDetail> OrderDetails { get; set; } = new();
     }
 

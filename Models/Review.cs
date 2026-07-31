@@ -9,7 +9,6 @@ namespace WebBanVLXD.Models
         public string Comment { get; set; } = null!;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-        // Hai cột này mới thêm vào:
         public string? AdminReply { get; set; } 
         public DateTime? ReplyDate { get; set; }
         public string? OrderId { get; set; } 

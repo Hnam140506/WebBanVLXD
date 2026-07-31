@@ -20,16 +20,14 @@ namespace WebBanVLXD.Models
         public string? ImageUrl { get; set; } 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // PHẢI CÓ 3 DÒNG NÀY ĐỂ FIX LỖI 1061
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; } 
 
         [Column(TypeName = "decimal(18,2)")]
-        public decimal OldPrice { get; set; } // Dòng này sẽ fix lỗi ở AppDbContext và EditProduct
+        public decimal OldPrice { get; set; }
 
         public int StockQuantity { get; set; }
 
-        // Các quan hệ mới
         public List<ProductImage> Images { get; set; } = new();
         public List<ProductVariant> Variants { get; set; } = new();
         public List<Review> Reviews { get; set; } = new();

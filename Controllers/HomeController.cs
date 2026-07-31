@@ -25,7 +25,7 @@ namespace WebBanVLXD.Controllers
                 products = products.Where(p => p.Name.ToLower().Contains(q)
                                             || p.Brand.ToLower().Contains(q)
                                             || p.Category.ToLower().Contains(q));
-                ViewBag.Query = query; // Để hiện lại chữ đã gõ trong ô tìm kiếm
+                ViewBag.Query = query;
             }
 
             // Lọc theo danh mục từ View Component
