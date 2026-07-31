@@ -214,8 +214,34 @@
             </div>
         </div>
     </div>
+<!-- Bong bóng Chatbot AI -->
+<div id="ai-chat-container" class="position-fixed shadow-lg bg-white rounded-4 border overflow-hidden d-none" style="bottom: 80px; right: 20px; width: 320px; z-index: 9999;">
+    <!-- Tiêu đề Chat -->
+    <div class="bg-orange text-white p-3 d-flex justify-content-between align-items-center" style="background-color: var(--bs-orange);">
+        <h6 class="m-0 fw-bold"><i class="fa-solid fa-robot me-2"></i>BuildSmart AI</h6>
+        <button type="button" class="btn-close btn-close-white" onclick="toggleChat()" style="font-size: 0.8rem;"></button>
+    </div>
+    
+    <!-- Khung tin nhắn -->
+    <div id="chat-box" class="p-3 bg-light" style="height: 300px; overflow-y: auto; font-size: 0.9rem;">
+        <div class="text-start mb-2">
+            <span class="d-inline-block p-2 bg-white rounded-3 shadow-sm border">Xin chào! Tôi là trợ lý AI của BuildSmart. Tôi có thể giúp gì cho bạn về vật liệu xây dựng?</span>
+        </div>
+    </div>
+    
+    <!-- Form nhập chat -->
+    <div class="p-2 border-top bg-white d-flex gap-2">
+        <input type="text" id="chat-input" class="form-control form-control-sm rounded-pill" placeholder="Hỏi về gạch, xi măng..." onkeypress="if(event.key === 'Enter') sendToAI()" />
+        <button class="btn btn-sm btn-orange rounded-circle text-white" onclick="sendToAI()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+</div>
 
+<!-- Nút mở Chatbot -->
+<button onclick="toggleChat()" class="btn btn-orange rounded-circle position-fixed shadow-lg text-white" style="bottom: 20px; right: 20px; width: 50px; height: 50px; z-index: 9999; background-color: var(--bs-orange); border:none;">
+    <i class="fa-solid fa-comment-dots fs-4"></i>
+</button>
     <script>
+        
         // Hàm nạp Mini Cart
         function loadMiniCart() {
             $.get('/Cart/GetMiniCart', function (data) {
@@ -242,6 +268,40 @@
             });
         }
     </script>
+    <script>
+    function toggleChat() {
+        $('#ai-chat-container').toggleClass('d-none');
+    }
+
+    function sendToAI() {
+        let msg = $('#chat-input').val().trim();
+        if(!msg) return;
+
+        // 1. In tin nhắn của khách lên màn hình
+        $('#chat-box').append(`<div class="text-end mb-2"><span class="d-inline-block p-2 bg-primary text-white rounded-3 shadow-sm">${msg}</span></div>`);
+        $('#chat-input').val('');
+        
+        // Hiện thông báo đang gõ...
+        let loadingId = 'loading-' + Date.now();
+        $('#chat-box').append(`<div id="${loadingId}" class="text-start mb-2 text-muted small fst-italic">AI đang suy nghĩ...</div>`);
+        $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+
+        // 2. Gửi AJAX gọi Controller C#
+        $.post('/Chatbot/AskAI', { message: msg }, function(res) {
+            $('#' + loadingId).remove(); // Xóa chữ đang suy nghĩ
+            
+            if(res.success) {
+                // In câu trả lời của AI
+                // Dùng regex để thay ký tự ** in đậm của Google thành thẻ <b>
+                let formattedReply = res.reply.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                $('#chat-box').append(`<div class="text-start mb-2"><span class="d-inline-block p-2 bg-white rounded-3 shadow-sm border">${formattedReply}</span></div>`);
+            } else {
+                $('#chat-box').append(`<div class="text-start mb-2"><span class="d-inline-block p-2 bg-danger text-white rounded-3 shadow-sm">${res.reply}</span></div>`);
+            }
+            $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+        });
+    }
+</script>
 </body>
 
 </html>
